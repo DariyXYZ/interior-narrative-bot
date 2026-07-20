@@ -206,7 +206,13 @@ async def get_session_result(session_id: str, user: Annotated[dict, Depends(curr
 
 @app.get("/api/v1/results")
 async def results(user: Annotated[dict, Depends(current_user)]) -> list[dict]:
-    return await repository.list_user_results(user["id"])
+    rows = await repository.list_user_results(user["id"])
+    for row in rows:
+        content = quiz_engine.load_content(row["test_key"])
+        narrative = content["narratives"].get(row["primary_narrative_key"], {})
+        row["primary_narrative_name"] = narrative.get("name", row["primary_narrative_key"])
+        row["primary_narrative_color"] = narrative.get("color")
+    return rows
 
 
 @app.get("/")

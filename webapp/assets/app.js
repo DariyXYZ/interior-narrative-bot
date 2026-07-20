@@ -562,15 +562,33 @@ async function showHistory() {
         const item = document.createElement("div");
         item.className = "history-item";
         const date = r.completed_at ? new Date(r.completed_at).toLocaleDateString("ru-RU") : "";
+        const name = r.primary_narrative_name || r.primary_narrative_key;
+        const label = r.code_name ? `${r.code_name} — ${name}` : name;
         item.innerHTML = `
           <div class="h-top"><span>${TEST_LABELS[r.test_key] || r.test_key}</span><span>${date}</span></div>
-          <strong>${r.primary_narrative_key} · ${r.primary_score}%</strong>
+          <strong>${label} · ${r.primary_score}%</strong>
         `;
+        item.addEventListener("click", () => openHistoryResult(r.session_id));
         list.appendChild(item);
       });
     }
   } catch (error) {
     list.innerHTML = `<p class="status">Не удалось загрузить историю: ${error.message}</p>`;
+  } finally {
+    busy = false;
+  }
+}
+
+async function openHistoryResult(sessionId) {
+  if (busy || !sessionId) return;
+  busy = true;
+  try {
+    const result = await loadFullResult(sessionId);
+    renderResultDetail(result);
+    showScreen("results");
+  } catch (error) {
+    setStatus(`Не удалось открыть результат: ${error.message}`);
+    showScreen("start");
   } finally {
     busy = false;
   }

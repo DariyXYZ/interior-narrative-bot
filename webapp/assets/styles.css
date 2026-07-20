@@ -405,7 +405,10 @@ button { font: inherit; }
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color .15s;
 }
+.history-item:hover { border-color: var(--accent); }
 .history-item .h-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
 .history-item strong { display: block; margin-top: 4px; font-size: 15px; }
 
