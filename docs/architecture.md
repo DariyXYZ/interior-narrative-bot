@@ -5,8 +5,10 @@
 ```mermaid
 flowchart LR
     TG[Telegram bot / aiogram] -->|reply-кнопка| WEB[GitHub Pages Mini App]
-    WEB -->|signed initData + HTTPS| NG[ngrok]
-    NG --> API[Local FastAPI]
+    WEB -->|signed initData + HTTPS| NG[ngrok shared domain]
+    NG --> GW[Local gateway :8090]
+    GW -->|default| POP[poprobui API :8000]
+    GW -->|/interior-api| API[Interior API :8010]
     TG -->|в будущем: internal API| API
     API --> DB[(SQLite WAL)]
     API --> DOMAIN[Scoring + result composer]

@@ -31,7 +31,7 @@ app.add_middleware(
     allow_origins=list(settings.allowed_origins),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Telegram-Init-Data"],
+    allow_headers=["Content-Type", "X-Telegram-Init-Data", "ngrok-skip-browser-warning"],
 )
 app.mount("/assets", StaticFiles(directory=WEBAPP_DIR / "assets"), name="assets")
 
