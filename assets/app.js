@@ -197,6 +197,9 @@ function renderQuestion() {
   document.getElementById("progress-fill").style.width = `${Math.round((index / total) * 100)}%`;
   document.getElementById("q-text").textContent = question.text;
   document.getElementById("save-indicator").textContent = "";
+  document.getElementById("q-hint").hidden = !question.multi;
+
+  const selected = new Set(answers[question.id] || []);
 
   const list = document.getElementById("options-list");
   list.innerHTML = "";
@@ -205,18 +208,61 @@ function renderQuestion() {
     btn.type = "button";
     btn.className = "option-btn" + (option.id === "dunno" ? " dunno" : "");
     btn.textContent = option.text;
-    if (answers[question.id] === option.id) {
+    if (selected.has(option.id)) {
       btn.classList.add("chosen");
     }
-    btn.addEventListener("click", () => chooseOption(question.id, option.id, btn));
+    btn.addEventListener("click", () => {
+      if (question.multi) {
+        toggleMultiOption(question, option.id, btn);
+      } else {
+        chooseSingleOption(question.id, option.id, btn);
+      }
+    });
     list.appendChild(btn);
   });
 
   const backBtn = document.getElementById("btn-back");
   backBtn.style.visibility = index === 0 ? "hidden" : "visible";
+
+  const nextBtn = document.getElementById("btn-next");
+  nextBtn.hidden = !question.multi;
+  nextBtn.disabled = question.multi && selected.size === 0;
 }
 
-async function chooseOption(questionId, optionId, buttonEl) {
+// Multi-select: клик копит выбор локально, отправляем всё разом по «Далее».
+// «Не знаю» эксклюзивен с остальными вариантами — иначе итоговый набор
+// противоречив (и «не в курсе», и конкретный ответ одновременно).
+function toggleMultiOption(question, optionId, buttonEl) {
+  const current = new Set(quiz.answers[question.id] || []);
+  const isDunno = optionId === "dunno";
+
+  if (current.has(optionId)) {
+    current.delete(optionId);
+    buttonEl.classList.remove("chosen");
+  } else {
+    if (isDunno) {
+      current.clear();
+    } else {
+      current.delete("dunno");
+    }
+    current.add(optionId);
+    buttonEl.classList.add("chosen");
+  }
+
+  quiz.answers[question.id] = [...current];
+  syncMultiButtonStates(question, current);
+  document.getElementById("btn-next").disabled = current.size === 0;
+}
+
+function syncMultiButtonStates(question, selectedSet) {
+  const list = document.getElementById("options-list");
+  [...list.children].forEach((btn, idx) => {
+    const optionId = question.options[idx].id;
+    btn.classList.toggle("chosen", selectedSet.has(optionId));
+  });
+}
+
+async function chooseSingleOption(questionId, optionId, buttonEl) {
   if (savingAnswer) return;
   savingAnswer = true;
 
@@ -224,14 +270,11 @@ async function chooseOption(questionId, optionId, buttonEl) {
   const indicator = document.getElementById("save-indicator");
   indicator.textContent = "Сохраняем…";
 
-  quiz.answers[questionId] = optionId;
+  quiz.answers[questionId] = [optionId];
   buttonEl.classList.add("chosen");
 
   try {
-    await api(`/api/v1/sessions/${quiz.sessionId}/answers/${questionId}`, {
-      method: "PUT",
-      body: JSON.stringify({ option_id: optionId }),
-    });
+    await submitAnswer(questionId, [optionId]);
     indicator.textContent = "";
   } catch (error) {
     indicator.textContent = `Не сохранилось: ${error.message}`;
@@ -242,14 +285,52 @@ async function chooseOption(questionId, optionId, buttonEl) {
 
   setTimeout(async () => {
     savingAnswer = false;
-    if (quiz.index + 1 >= quiz.content.questions.length) {
-      await finishQuiz();
-    } else {
-      quiz.index += 1;
-      renderQuestion();
-    }
+    await advanceOrFinish();
   }, 160);
 }
+
+async function submitAnswer(questionId, optionIds) {
+  await api(`/api/v1/sessions/${quiz.sessionId}/answers/${questionId}`, {
+    method: "PUT",
+    body: JSON.stringify({ option_ids: optionIds }),
+  });
+}
+
+async function advanceOrFinish() {
+  if (quiz.index + 1 >= quiz.content.questions.length) {
+    await finishQuiz();
+  } else {
+    quiz.index += 1;
+    renderQuestion();
+  }
+}
+
+document.getElementById("btn-next").addEventListener("click", async () => {
+  if (savingAnswer || !quiz) return;
+  const question = quiz.content.questions[quiz.index];
+  const selected = quiz.answers[question.id] || [];
+  if (!selected.length) return;
+
+  savingAnswer = true;
+  document.getElementById("btn-next").disabled = true;
+  document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = true; });
+  const indicator = document.getElementById("save-indicator");
+  indicator.textContent = "Сохраняем…";
+
+  try {
+    await submitAnswer(question.id, selected);
+    indicator.textContent = "";
+  } catch (error) {
+    indicator.textContent = `Не сохранилось: ${error.message}`;
+    document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = false; });
+    document.getElementById("btn-next").disabled = false;
+    savingAnswer = false;
+    return;
+  }
+
+  savingAnswer = false;
+  await advanceOrFinish();
+});
 
 document.getElementById("btn-back").addEventListener("click", () => {
   if (savingAnswer || !quiz || quiz.index === 0) return;
@@ -264,7 +345,10 @@ async function finishQuiz() {
   try {
     const result = await api(`/api/v1/sessions/${quiz.sessionId}/complete`, { method: "POST" });
     localStorage.removeItem(sessionKey(quiz.testKey));
-    renderResult(result);
+    // Дожидаемся полной прорисовки НОВОГО результата, прежде чем показать
+    // экран — иначе на долю секунды виден предыдущий результат (screen-results
+    // ещё хранит DOM от прошлого прохождения, если это уже не первый тест в сессии).
+    await renderResult(result);
     showScreen("results");
   } catch (error) {
     document.getElementById("q-text").textContent = `Не удалось получить результат: ${error.message}`;
@@ -279,10 +363,13 @@ async function loadFullResult(sessionId) {
   return api(`/api/v1/sessions/${sessionId}/result`);
 }
 
-function renderResult(resultSummary) {
-  loadFullResult(resultSummary.session_id || resultSummary.id)
-    .then(renderResultDetail)
-    .catch(() => renderResultDetail(resultSummary));
+async function renderResult(resultSummary) {
+  try {
+    const full = await loadFullResult(resultSummary.session_id || resultSummary.id);
+    renderResultDetail(full);
+  } catch {
+    renderResultDetail(resultSummary);
+  }
 }
 
 // Висячие предлоги/короткие слова — неразрывный пробел (U+00A0), не обычный.

@@ -53,7 +53,7 @@
     <section class="screen" id="screen-project" hidden>
       <div class="panel-header">
         <h2>Новый проект</h2>
-        <p>Понадобится для теста «Нарратив для проекта» — можно вернуться и уточнить позже.</p>
+        <p>Заполните информацию о проекте — её можно будет скорректировать позже.</p>
       </div>
       <form id="project-form" class="form" novalidate>
         <label class="field">
@@ -92,12 +92,14 @@
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
 
       <h2 class="q-text" id="q-text"></h2>
+      <p class="q-hint" id="q-hint" hidden>Можно выбрать несколько вариантов</p>
 
       <div class="options" id="options-list"></div>
 
       <div class="quiz-actions">
         <button type="button" class="btn-ghost" id="btn-back">Назад</button>
         <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
+        <button type="button" class="btn-primary" id="btn-next" hidden>Далее</button>
       </div>
     </section>
 
