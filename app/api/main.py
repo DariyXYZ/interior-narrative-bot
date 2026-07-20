@@ -60,7 +60,7 @@ class ProjectCreate(BaseModel):
 
 
 class AnswerSubmit(BaseModel):
-    option_id: str = Field(min_length=1, max_length=32)
+    option_ids: list[str] = Field(min_length=1, max_length=8)
 
 
 async def telegram_identity(
@@ -162,9 +162,14 @@ async def submit_answer(
     except quiz_engine.ContentNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     question = next((q for q in content["questions"] if q["id"] == question_id), None)
-    if question is None or not any(o["id"] == payload.option_id for o in question["options"]):
-        raise HTTPException(status_code=422, detail="Неизвестный вопрос или вариант ответа")
-    await repository.upsert_answer(session_id, question_id, payload.option_id)
+    if question is None:
+        raise HTTPException(status_code=422, detail="Неизвестный вопрос")
+    valid_ids = {o["id"] for o in question["options"]}
+    if not set(payload.option_ids) <= valid_ids:
+        raise HTTPException(status_code=422, detail="Неизвестный вариант ответа")
+    if not question.get("multi", False) and len(payload.option_ids) > 1:
+        raise HTTPException(status_code=422, detail="Этот вопрос допускает только один вариант ответа")
+    await repository.upsert_answer(session_id, question_id, payload.option_ids)
     return {"status": "saved"}
 
 
@@ -181,7 +186,7 @@ async def complete_session(session_id: str, user: Annotated[dict, Depends(curren
     except quiz_engine.ContentNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     answers = await repository.list_session_answers(session_id)
-    result = quiz_engine.compose_result(session["test_key"], content, answers)
+    result = quiz_engine.compose_result(session["test_key"], content, answers, session_id)
     await repository.complete_session(session_id, result)
     await repository.log_event(
         "session_completed", user["id"], session_id,
@@ -197,7 +202,13 @@ async def get_session_result(session_id: str, user: Annotated[dict, Depends(curr
     if result is None:
         raise HTTPException(status_code=404, detail="Результат не найден")
     content = quiz_engine.load_content(result["test_key"])
-    result["primary_detail"] = quiz_engine.narrative_detail(content, result["primary_narrative_key"])
+    if result["test_key"] == "project-narrative":
+        phrase_bank = quiz_engine.load_phrase_bank()
+        result["primary_detail"] = quiz_engine.narrative_detail_for_session(
+            content, phrase_bank, result["primary_narrative_key"], session_id
+        )
+    else:
+        result["primary_detail"] = quiz_engine.narrative_detail(content, result["primary_narrative_key"])
     for alt in result["alternatives"]:
         alt["detail"] = quiz_engine.narrative_detail(content, alt["key"])
     result["full_ranking"] = quiz_engine.full_ranking(content, result["scoring_trace"]["ranked"])

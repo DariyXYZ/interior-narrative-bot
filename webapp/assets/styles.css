@@ -202,13 +202,15 @@ button { font: inherit; }
 }
 
 .q-text {
-  margin: 0 0 26px;
+  margin: 0 0 8px;
   font-size: clamp(18px, 4.5vw, 20px);
   line-height: 1.45;
   font-weight: 650;
   letter-spacing: -0.005em;
   color: var(--text-primary);
 }
+
+.q-hint { margin: 0 0 18px; font-size: 13px; color: var(--text-muted); }
 
 .options { display: grid; gap: 12px; }
 

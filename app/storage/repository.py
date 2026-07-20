@@ -134,7 +134,14 @@ async def get_session(session_id: str, user_id: int) -> dict | None:
         return dict(row) if row else None
 
 
-async def list_session_answers(session_id: str) -> dict[str, str]:
+def _decode_answer(answer_json: str) -> list[str]:
+    data = json.loads(answer_json)
+    if "option_ids" in data:
+        return data["option_ids"]
+    return [data["option_id"]]  # старый формат (до multi-select), совместимость
+
+
+async def list_session_answers(session_id: str) -> dict[str, list[str]]:
     async with _connect() as db:
         await _configure(db)
         cursor = await db.execute(
@@ -142,10 +149,10 @@ async def list_session_answers(session_id: str) -> dict[str, str]:
             (session_id,),
         )
         rows = await cursor.fetchall()
-        return {question_id: json.loads(answer_json)["option_id"] for question_id, answer_json in rows}
+        return {question_id: _decode_answer(answer_json) for question_id, answer_json in rows}
 
 
-async def upsert_answer(session_id: str, question_id: str, option_id: str) -> None:
+async def upsert_answer(session_id: str, question_id: str, option_ids: list[str]) -> None:
     now = utc_now()
     async with _connect() as db:
         await _configure(db)
@@ -157,7 +164,7 @@ async def upsert_answer(session_id: str, question_id: str, option_id: str) -> No
                 answer_json = excluded.answer_json,
                 answered_at = excluded.answered_at
             """,
-            (session_id, question_id, json.dumps({"option_id": option_id}, ensure_ascii=False), now),
+            (session_id, question_id, json.dumps({"option_ids": option_ids}, ensure_ascii=False), now),
         )
         await db.execute(
             "UPDATE test_sessions SET current_question_id = ?, updated_at = ? WHERE id = ?",
