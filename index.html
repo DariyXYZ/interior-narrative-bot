@@ -102,22 +102,32 @@
     </section>
 
     <section class="screen" id="screen-results" hidden>
+      <p class="result-kicker" id="result-kicker">Основной нарратив</p>
+
       <div class="result-card" id="result-card">
-        <p class="result-kicker" id="result-kicker">Основной нарратив</p>
         <h2 id="result-name"></h2>
         <p class="result-subtitle" id="result-subtitle"></p>
+        <div class="result-image" id="result-image-wrap" hidden><img id="result-image" src="" alt=""></div>
         <div class="fit-row">
           <div class="fit-bar-track"><div class="fit-bar-fill" id="fit-bar"></div></div>
           <span id="fit-percent"></span>
         </div>
         <p class="confidence-line" id="confidence-line"></p>
+        <p class="result-text" id="result-text"></p>
+        <div class="result-detail" id="result-detail"></div>
       </div>
 
-      <p class="result-text" id="result-text"></p>
+      <div class="wheel-section" id="wheel-section" hidden>
+        <h3 id="wheel-title">Профиль дизайнерского мышления</h3>
+        <svg id="wheel-svg" viewBox="0 0 440 440" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
 
-      <div class="result-detail" id="result-detail"></div>
+      <div class="summary-section" id="summary-section" hidden></div>
 
-      <div class="alternatives" id="alternatives"></div>
+      <div class="ranked-section">
+        <h3 id="ranked-title">Все архетипы — от ближайшего к дальнему</h3>
+        <div id="ranked-list"></div>
+      </div>
 
       <div class="result-actions">
         <button type="button" class="btn-ghost" id="btn-restart">На главный экран</button>
