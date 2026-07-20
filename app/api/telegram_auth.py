@@ -38,8 +38,11 @@ def validate_init_data(init_data: str, bot_token: str, max_age_seconds: int) -> 
         auth_date = int(values.get("auth_date", "0"))
     except ValueError as exc:
         raise TelegramAuthError("Некорректная дата Telegram initData") from exc
-    if auth_date <= 0 or time.time() - auth_date > max_age_seconds:
+    now = time.time()
+    if auth_date <= 0 or now - auth_date > max_age_seconds:
         raise TelegramAuthError("Telegram initData устарел")
+    if auth_date - now > 300:
+        raise TelegramAuthError("Telegram initData из будущего")
 
     try:
         user = json.loads(values["user"])

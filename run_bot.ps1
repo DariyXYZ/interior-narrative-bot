@@ -8,10 +8,15 @@ if (-not $created) {
     exit 0
 }
 
+# Осиротевший child предыдущей обёртки = второй polling-инстанс и Telegram Conflict — убираем.
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'app\.bot\.main' -and $_.Name -eq 'python.exe' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
 while ($true) {
     if ((Test-Path "bot.err.log") -and ((Get-Item "bot.err.log").Length -gt 5MB)) {
         Move-Item -Force "bot.err.log" "bot.err.old.log"
     }
-    python -m app.bot.main 2>> "bot.err.log"
+    # cmd /c: байтовый redirect без PowerShell ErrorRecord/UTF-16 обёртки
+    cmd /c "python -m app.bot.main 2>> bot.err.log"
     Start-Sleep -Seconds 5
 }

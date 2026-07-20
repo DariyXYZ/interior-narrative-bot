@@ -4,18 +4,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
 
+import aiosqlite
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.telegram_auth import TelegramAuthError, TelegramIdentity, validate_init_data
 from app.core.config import BASE_DIR, get_settings
 from app.storage import repository
 
 WEBAPP_DIR = BASE_DIR / "webapp"
-VALID_TESTS = {"designer-profile", "project-narrative"}
 
 
 @asynccontextmanager
@@ -24,7 +24,14 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="IND Interior Narrative API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="IND Interior Narrative API",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
@@ -38,7 +45,7 @@ app.mount("/assets", StaticFiles(directory=WEBAPP_DIR / "assets"), name="assets"
 
 class SessionCreate(BaseModel):
     test_key: Literal["designer-profile", "project-narrative"]
-    project_id: str | None = None
+    project_id: str | None = Field(default=None, max_length=64)
 
 
 async def telegram_identity(
@@ -75,7 +82,10 @@ async def me(user: Annotated[dict, Depends(current_user)]) -> dict:
 
 @app.post("/api/v1/sessions", status_code=201)
 async def start_session(payload: SessionCreate, user: Annotated[dict, Depends(current_user)]) -> dict:
-    session = await repository.create_session(user["id"], payload.test_key, payload.project_id)
+    try:
+        session = await repository.create_session(user["id"], payload.test_key, payload.project_id)
+    except aiosqlite.IntegrityError as exc:
+        raise HTTPException(status_code=422, detail="Неизвестный project_id") from exc
     await repository.log_event("session_started", user["id"], session["id"], {"test_key": payload.test_key})
     return session
 
@@ -92,6 +102,8 @@ async def index() -> FileResponse:
 
 @app.get("/{path:path}", include_in_schema=False)
 async def spa_fallback(path: str) -> FileResponse:
+    if path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Не найдено")
     candidate = (WEBAPP_DIR / path).resolve()
     if candidate.is_file() and WEBAPP_DIR.resolve() in candidate.parents:
         return FileResponse(candidate)

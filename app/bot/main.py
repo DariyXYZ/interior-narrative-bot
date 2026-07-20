@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 
 from aiogram import Bot, Dispatcher
@@ -15,6 +16,7 @@ from app.core.config import get_settings
 COMMANDS = [
     BotCommand(command="start", description="Главное меню"),
     BotCommand(command="app", description="Открыть приложение"),
+    BotCommand(command="info", description="Что умеет бот"),
     BotCommand(command="results", description="Мои результаты"),
     BotCommand(command="help", description="Как пользоваться"),
     BotCommand(command="privacy", description="Какие данные сохраняются"),
@@ -31,7 +33,7 @@ async def main() -> None:
 
     @dp.message(CommandStart())
     async def start(message: Message) -> None:
-        name = message.from_user.first_name or "коллега"
+        name = html.escape(message.from_user.first_name or "коллега")
         await message.answer(
             f"Привет, {name}.\n\n"
             "Здесь два инструмента: профиль вашего проектного мышления и подбор нарратива для конкретного брифа.",
@@ -41,6 +43,20 @@ async def main() -> None:
     @dp.message(Command("app"))
     async def open_app(message: Message) -> None:
         await message.answer("Откройте приложение кнопкой ниже.", reply_markup=app_keyboard(webapp_url))
+
+    @dp.message(Command("info"))
+    async def info(message: Message) -> None:
+        await message.answer(
+            "<b>Что умеет бот</b>\n\n"
+            "Внутренний инструмент дизайнеров интерьеров IND. Два независимых теста:\n\n"
+            "01 · <b>Какой вы тип дизайнера</b> — определяет ваш авторский профиль: "
+            "как вы находите идею, строите пространство и принимаете решения.\n\n"
+            "02 · <b>Нарратив проекта</b> — после полного брифа подбирает основной "
+            "и два альтернативных нарратива, аргументацию для заказчика, "
+            "визуальный язык и проекты-референсы.\n\n"
+            "Результаты сохраняются в вашей истории — тесты можно проходить заново.",
+            reply_markup=app_keyboard(webapp_url),
+        )
 
     @dp.message(Command("results"))
     async def open_results(message: Message) -> None:
