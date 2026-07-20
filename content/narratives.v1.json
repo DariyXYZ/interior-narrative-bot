@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "status": "working",
+  "note": "Первичны конкурсные нарративы; persona_label — производная формулировка первого теста.",
+  "items": [
+    {"key": "time", "persona_label": "Архитектор времени", "strategy_label": "Концепция на стыке эпох"},
+    {"key": "director", "persona_label": "Режиссёр впечатлений", "strategy_label": "Маршрут из моментов"},
+    {"key": "brand", "persona_label": "Стратег бренда", "strategy_label": "Идентичность в пространстве"},
+    {"key": "bio", "persona_label": "Биофил", "strategy_label": "Природа как точка отсчёта"},
+    {"key": "host", "persona_label": "Архитектор гостеприимства", "strategy_label": "Проектирование через заботу"},
+    {"key": "scale", "persona_label": "Архитектор масштаба", "strategy_label": "Пространство как выразительный жест"},
+    {"key": "material", "persona_label": "Материаловед", "strategy_label": "Материал как высказывание"},
+    {"key": "human", "persona_label": "Гуманист", "strategy_label": "Человек в центре внимания"},
+    {"key": "curator", "persona_label": "Куратор образов", "strategy_label": "Художественный образ как основа"},
+    {"key": "context", "persona_label": "Контекстуалист", "strategy_label": "Погружение в среду"},
+    {"key": "urban", "persona_label": "Урбанист", "strategy_label": "Интерьер как город"}
+  ]
+}
+

@@ -1,0 +1,18 @@
+{
+  "version": "1",
+  "status": "schema-only",
+  "rules": {
+    "selection": "deterministic-by-session-and-slot",
+    "store_fragment_ids": true,
+    "no_random_untraceable_copy": true
+  },
+  "slots": {
+    "opening": [],
+    "fit_reason": [],
+    "client_argument": [],
+    "visual_direction": [],
+    "risk": [],
+    "next_step": []
+  }
+}
+
