@@ -27,6 +27,7 @@ async function api(path, options = {}) {
     headers: {
       "Content-Type": "application/json",
       "X-Telegram-Init-Data": initData,
+      "ngrok-skip-browser-warning": "1",
       ...(options.headers || {}),
     },
   });
