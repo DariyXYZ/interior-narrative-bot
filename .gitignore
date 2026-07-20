@@ -6,4 +6,5 @@ __pycache__/
 data/*.sqlite3
 data/*.sqlite3-*
 logs/*.log
-
+*.log
+*.old.log

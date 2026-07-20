@@ -16,17 +16,19 @@ app/
 content/        версионируемые нарративы, вопросы, фразы, референсы
 docs/           архитектурные решения
 tests/          unit-тесты доменной логики и авторизации
-  webapp/         mobile-first Mini App для GitHub Pages
+webapp/         mobile-first Mini App для GitHub Pages
 ```
 
 ## Локальный запуск
 
 1. Создать `.env` из `.env.example` и использовать новый токен бота.
 2. Установить зависимости: `python -m pip install -r requirements-dev.txt`.
-3. Запустить API: `./run_api.ps1`.
-4. Запустить бота в другом терминале: `./run_bot.ps1`.
+3. Запустить весь runtime: `./start_runtime.ps1`.
+4. Один раз выполнить `./register_autostart.ps1`, чтобы runtime запускался при входе в Windows без админских прав.
 
-Mini App публикуется на GitHub Pages. Локальный API доступен снаружи через постоянный ngrok-домен; его URL задаётся в `webapp/config.js`. `WEBAPP_URL` указывает на GitHub Pages, а `ALLOWED_ORIGINS` разрешает только origin GitHub Pages.
+`start_runtime.ps1` поднимает бота, Interior API на `127.0.0.1:8010`, общий gateway на `127.0.0.1:8090` и ngrok. Каждый долгоживущий процесс защищён mutex от дублей, перезапускается после сбоя и ротирует error log после 5 MB.
+
+Mini App публикуется на GitHub Pages. Постоянный ngrok-домен ведёт на общий gateway: старый `poprobui` остаётся на корневых маршрутах, а Interior API доступен под `/interior-api`. URL API задаётся в `webapp/config.js`. `WEBAPP_URL` указывает на GitHub Pages, а `ALLOWED_ORIGINS` разрешает только origin GitHub Pages.
 
 ## Команды первой версии
 
