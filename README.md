@@ -30,6 +30,8 @@ webapp/         mobile-first Mini App для GitHub Pages
 
 Mini App публикуется на GitHub Pages. Постоянный ngrok-домен ведёт на общий gateway: старый `poprobui` остаётся на корневых маршрутах, а Interior API доступен под `/interior-api`. URL API задаётся в `webapp/config.js`. `WEBAPP_URL` указывает на GitHub Pages, а `ALLOWED_ORIGINS` разрешает только origin GitHub Pages.
 
+После изменения `webapp/` ветка `gh-pages` обновляется автоматически. Если GitHub Actions временно недоступен, после коммита можно выполнить `./deploy_pages.ps1` вручную.
+
 ## Команды первой версии
 
 - `/start` — приветствие и основная кнопка;
