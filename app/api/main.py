@@ -200,6 +200,7 @@ async def get_session_result(session_id: str, user: Annotated[dict, Depends(curr
     result["primary_detail"] = quiz_engine.narrative_detail(content, result["primary_narrative_key"])
     for alt in result["alternatives"]:
         alt["detail"] = quiz_engine.narrative_detail(content, alt["key"])
+    result["full_ranking"] = quiz_engine.full_ranking(content, result["scoring_trace"]["ranked"])
     return result
 
 

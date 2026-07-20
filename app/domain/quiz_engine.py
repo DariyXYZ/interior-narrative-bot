@@ -187,6 +187,15 @@ def compose_result(test_key: str, content: dict, answers: dict[str, str]) -> dic
     return composer(content, answers)
 
 
+def full_ranking(content: dict, ranked: list[dict]) -> list[dict]:
+    """Все нарративы с полной карточкой (для колеса и развёрнутого списка), не только топ-3."""
+    result = []
+    for item in ranked:
+        detail = narrative_detail(content, item["key"])
+        result.append({**detail, "fit_percent": item["fit_percent"]})
+    return result
+
+
 def narrative_detail(content: dict, key: str) -> dict:
     """Полная карточка нарратива для экрана результата (без max_score - внутренняя деталь)."""
     n = dict(content["narratives"][key])
