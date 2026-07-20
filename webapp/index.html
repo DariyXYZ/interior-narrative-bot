@@ -19,34 +19,120 @@
       <button class="history-button" id="history-button" type="button">История</button>
     </header>
 
-    <section class="intro" aria-labelledby="page-title">
-      <h1 id="page-title">Выберите тест</h1>
-      <p>Два независимых инструмента для авторского профиля и конкретного проектного брифа.</p>
+    <section class="screen" id="screen-start">
+      <div class="intro" aria-labelledby="page-title">
+        <h1 id="page-title">Выберите тест</h1>
+        <p>Два независимых инструмента для авторского профиля и конкретного проектного брифа.</p>
+      </div>
+
+      <div class="test-list" aria-label="Доступные тесты">
+        <button class="test-card" data-test="designer-profile" type="button">
+          <span class="test-number">01</span>
+          <span class="test-content">
+            <strong>Какой вы тип дизайнера</strong>
+            <span>30 вопросов о том, как вы находите идею, строите пространство и принимаете проектные решения.</span>
+            <span class="test-meta">Первый результат · 10 минут</span>
+          </span>
+          <span class="arrow" aria-hidden="true">→</span>
+        </button>
+
+        <button class="test-card" data-test="project-narrative" type="button">
+          <span class="test-number">02</span>
+          <span class="test-content">
+            <strong>Нарратив для проекта</strong>
+            <span>Разбор полного брифа: основной стратегический маршрут, две альтернативы и конкурсные референсы.</span>
+            <span class="test-meta">Для нового проекта · 10–15 минут</span>
+          </span>
+          <span class="arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="test-list" aria-label="Доступные тесты">
-      <button class="test-card" data-test="designer-profile" type="button">
-        <span class="test-number">01</span>
-        <span class="test-content">
-          <strong>Какой вы тип дизайнера</strong>
-          <span>30 вопросов о том, как вы находите идею, строите пространство и принимаете проектные решения.</span>
-          <span class="test-meta">Первый результат · 10 минут</span>
-        </span>
-        <span class="arrow" aria-hidden="true">→</span>
-      </button>
-
-      <button class="test-card" data-test="project-narrative" type="button">
-        <span class="test-number">02</span>
-        <span class="test-content">
-          <strong>Нарратив для проекта</strong>
-          <span>Разбор полного брифа: основной стратегический маршрут, две альтернативы и конкурсные референсы.</span>
-          <span class="test-meta">Для нового проекта · 10–15 минут</span>
-        </span>
-        <span class="arrow" aria-hidden="true">→</span>
-      </button>
+    <section class="screen" id="screen-project" hidden>
+      <div class="panel-header">
+        <h2>Новый проект</h2>
+        <p>Понадобится для теста «Нарратив для проекта» — можно вернуться и уточнить позже.</p>
+      </div>
+      <form id="project-form" class="form" novalidate>
+        <label class="field">
+          <span>Код или условное название проекта</span>
+          <input type="text" id="project-code" name="code_name" maxlength="120" required placeholder="Например: Проект А1">
+        </label>
+        <label class="field">
+          <span>Тип объекта</span>
+          <select id="project-object-type" name="object_type">
+            <option value="office">Офис</option>
+            <option value="restaurant">Ресторан / кафе</option>
+            <option value="hotel">Отель</option>
+            <option value="residential-common">МОП жилого комплекса</option>
+            <option value="airport">Аэропорт</option>
+            <option value="museum">Музей</option>
+            <option value="other">Другое</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Площадь, м² (не обязательно)</span>
+          <input type="number" id="project-area" name="area_m2" min="0" max="1000000" step="1" placeholder="850">
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" id="project-cancel">Назад</button>
+          <button type="submit" class="btn-primary">Начать тест</button>
+        </div>
+      </form>
+      <p class="status" id="project-status" role="status" aria-live="polite"></p>
     </section>
 
-    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <section class="screen" id="screen-question" hidden>
+      <div class="progress-row">
+        <span id="q-counter">Вопрос 1 из 30</span>
+        <span id="q-percent">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+
+      <h2 class="q-text" id="q-text"></h2>
+
+      <div class="options" id="options-list"></div>
+
+      <div class="quiz-actions">
+        <button type="button" class="btn-ghost" id="btn-back">Назад</button>
+        <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-results" hidden>
+      <div class="result-card" id="result-card">
+        <p class="result-kicker" id="result-kicker">Основной нарратив</p>
+        <h2 id="result-name"></h2>
+        <p class="result-subtitle" id="result-subtitle"></p>
+        <div class="fit-row">
+          <div class="fit-bar-track"><div class="fit-bar-fill" id="fit-bar"></div></div>
+          <span id="fit-percent"></span>
+        </div>
+        <p class="confidence-line" id="confidence-line"></p>
+      </div>
+
+      <p class="result-text" id="result-text"></p>
+
+      <div class="result-detail" id="result-detail"></div>
+
+      <div class="alternatives" id="alternatives"></div>
+
+      <div class="result-actions">
+        <button type="button" class="btn-ghost" id="btn-restart">На главный экран</button>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-history" hidden>
+      <div class="panel-header">
+        <h2>История прохождений</h2>
+      </div>
+      <div class="history-list" id="history-list"></div>
+      <div class="result-actions">
+        <button type="button" class="btn-ghost" id="history-back">На главный экран</button>
+      </div>
+    </section>
   </main>
 
   <script type="module" src="./assets/app.js"></script>
