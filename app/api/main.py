@@ -11,12 +11,19 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app.api.telegram_auth import TelegramAuthError, TelegramIdentity, validate_init_data
+from app.api.telegram_auth import (
+    TelegramAuthError,
+    TelegramIdentity,
+    issue_session_token,
+    validate_init_data,
+    verify_session_token,
+)
 from app.core.config import BASE_DIR, get_settings
 from app.domain import quiz_engine
 from app.storage import repository
 
 WEBAPP_DIR = BASE_DIR / "webapp"
+SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 дней — токен переживает баги Telegram-клиента с initData
 
 
 @asynccontextmanager
@@ -39,7 +46,7 @@ app.add_middleware(
     allow_origins=list(settings.allowed_origins),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Telegram-Init-Data", "ngrok-skip-browser-warning"],
+    allow_headers=["Content-Type", "Authorization", "X-Telegram-Init-Data", "ngrok-skip-browser-warning"],
 )
 app.mount("/assets", StaticFiles(directory=WEBAPP_DIR / "assets"), name="assets")
 
@@ -77,8 +84,41 @@ async def telegram_identity(
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
-async def current_user(identity: Annotated[TelegramIdentity, Depends(telegram_identity)]) -> dict:
+async def current_user(
+    authorization: Annotated[str | None, Header()] = None,
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Bearer-токен из /auth/exchange — приоритетный путь: не зависит от того,
+    насколько свежий/целый initData отдал в этот раз Telegram-клиент. Сырой
+    initData остаётся резервным путём для клиентов, ещё не получивших токен."""
+    settings = get_settings()
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[len("bearer "):].strip()
+        telegram_user_id = verify_session_token(token, settings.require_bot_token())
+        if telegram_user_id is None:
+            raise HTTPException(status_code=401, detail="Сессионный токен недействителен или истёк")
+        user = await repository.get_user_by_telegram_id(telegram_user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Пользователь не найден")
+        return user
+    identity = await telegram_identity(x_telegram_init_data)
     return await repository.upsert_telegram_user(identity.user)
+
+
+@app.post("/api/v1/auth/exchange")
+async def auth_exchange(identity: Annotated[TelegramIdentity, Depends(telegram_identity)]) -> dict:
+    """Разовый обмен подписанного Telegram initData на долгоживущий сессионный
+    токен. Фронтенд вызывает это один раз при первом валидном запуске и дальше
+    везде шлёт токен — initData больше не нужен для прохождения теста."""
+    settings = get_settings()
+    user = await repository.upsert_telegram_user(identity.user)
+    token = issue_session_token(user["telegram_user_id"], settings.require_bot_token(), SESSION_TOKEN_TTL_SECONDS)
+    return {
+        "session_token": token,
+        "telegram_user_id": user["telegram_user_id"],
+        "username": user["username"],
+        "first_name": user["first_name"],
+    }
 
 
 @app.get("/api/v1/health")

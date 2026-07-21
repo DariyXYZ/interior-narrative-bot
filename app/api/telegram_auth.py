@@ -52,3 +52,38 @@ def validate_init_data(init_data: str, bot_token: str, max_age_seconds: int) -> 
 
     return TelegramIdentity(user=user, auth_date=auth_date, query_id=values.get("query_id"))
 
+
+def _session_secret(bot_token: str) -> bytes:
+    return hmac.new(b"IndSessionToken", bot_token.encode("utf-8"), hashlib.sha256).digest()
+
+
+def issue_session_token(telegram_user_id: int, bot_token: str, ttl_seconds: int, now: float | None = None) -> str:
+    """Долгоживущий токен, выданный один раз после успешной проверки initData.
+
+    Развязывает прохождение теста от капризов Telegram-клиента (initData
+    протухает/кешируется/обрезается на бэкграунде — известный баг Desktop-клиента),
+    так как дальнейшие запросы аутентифицируются токеном, а не сырым initData."""
+    expires_at = int((now if now is not None else time.time()) + ttl_seconds)
+    payload = f"{telegram_user_id}.{expires_at}"
+    signature = hmac.new(_session_secret(bot_token), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}.{signature}"
+
+
+def verify_session_token(token: str, bot_token: str, now: float | None = None) -> int | None:
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    uid_raw, exp_raw, signature = parts
+    payload = f"{uid_raw}.{exp_raw}"
+    expected = hmac.new(_session_secret(bot_token), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        return None
+    try:
+        telegram_user_id = int(uid_raw)
+        expires_at = int(exp_raw)
+    except ValueError:
+        return None
+    if (now if now is not None else time.time()) > expires_at:
+        return None
+    return telegram_user_id
+

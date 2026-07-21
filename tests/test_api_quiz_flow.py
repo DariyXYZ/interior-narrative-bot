@@ -217,6 +217,38 @@ def test_cannot_read_another_users_session(client, auth_headers):
     assert resp.status_code == 404
 
 
+def test_auth_exchange_issues_working_bearer_token(client, auth_headers):
+    exchange = client.post("/api/v1/auth/exchange", headers=auth_headers)
+    assert exchange.status_code == 200
+    body = exchange.json()
+    assert body["session_token"]
+    assert body["username"] == "designer"
+
+    # дальше initData вообще не нужен — только токен
+    bearer_headers = {"Authorization": f"Bearer {body['session_token']}"}
+    me = client.get("/api/v1/me", headers=bearer_headers)
+    assert me.status_code == 200
+    assert me.json()["username"] == "designer"
+
+
+def test_bearer_token_survives_broken_init_data(client, auth_headers):
+    exchange = client.post("/api/v1/auth/exchange", headers=auth_headers)
+    token = exchange.json()["session_token"]
+
+    # initData "сломан" (как при известном баге Telegram Desktop) — не важно,
+    # раз есть валидный Bearer-токен запрос всё равно проходит.
+    resp = client.get(
+        "/api/v1/me",
+        headers={"Authorization": f"Bearer {token}", "X-Telegram-Init-Data": "query_id=only"},
+    )
+    assert resp.status_code == 200
+
+
+def test_garbage_bearer_token_rejected(client):
+    resp = client.get("/api/v1/me", headers={"Authorization": "Bearer not-a-real-token"})
+    assert resp.status_code == 401
+
+
 def test_unknown_test_key_is_404(client, auth_headers):
     assert client.get("/api/v1/tests/does-not-exist", headers=auth_headers).status_code == 404
 

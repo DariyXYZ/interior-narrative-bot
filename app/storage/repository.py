@@ -72,6 +72,17 @@ async def upsert_telegram_user(user: dict) -> dict:
         return dict(row)
 
 
+async def get_user_by_telegram_id(telegram_user_id: int) -> dict | None:
+    async with _connect() as db:
+        await _configure(db)
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM users WHERE telegram_user_id = ?", (telegram_user_id,)
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
 async def create_project(
     user_id: int,
     code_name: str,

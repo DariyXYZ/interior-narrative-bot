@@ -6,7 +6,12 @@ from urllib.parse import urlencode
 
 import pytest
 
-from app.api.telegram_auth import TelegramAuthError, validate_init_data
+from app.api.telegram_auth import (
+    TelegramAuthError,
+    issue_session_token,
+    validate_init_data,
+    verify_session_token,
+)
 
 
 def _signed_init_data(token: str, auth_offset: int = 0) -> str:
@@ -40,4 +45,31 @@ def test_future_init_data() -> None:
 def test_tampered_hash() -> None:
     with pytest.raises(TelegramAuthError):
         validate_init_data(_signed_init_data("token")[:-4] + "0000", "token", 60)
+
+
+def test_session_token_roundtrip() -> None:
+    token = issue_session_token(42, "token", ttl_seconds=3600)
+    assert verify_session_token(token, "token") == 42
+
+
+def test_session_token_rejects_wrong_secret() -> None:
+    token = issue_session_token(42, "token", ttl_seconds=3600)
+    assert verify_session_token(token, "other-token") is None
+
+
+def test_session_token_rejects_tampered_payload() -> None:
+    token = issue_session_token(42, "token", ttl_seconds=3600)
+    uid, exp, sig = token.split(".")
+    tampered = f"999.{exp}.{sig}"
+    assert verify_session_token(tampered, "token") is None
+
+
+def test_session_token_rejects_expired() -> None:
+    token = issue_session_token(42, "token", ttl_seconds=3600, now=1_000_000)
+    assert verify_session_token(token, "token", now=1_000_000 + 3601) is None
+
+
+def test_session_token_rejects_garbage() -> None:
+    assert verify_session_token("not-a-token", "token") is None
+    assert verify_session_token("", "token") is None
 
