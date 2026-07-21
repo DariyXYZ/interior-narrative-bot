@@ -9,34 +9,81 @@ if (tg) {
 }
 
 const initData = tg?.initData || "";
-const telegramUser = tg?.initDataUnsafe?.user;
 
-if (telegramUser) {
-  const label = telegramUser.username ? `@${telegramUser.username}` : telegramUser.first_name;
-  userLine.textContent = label || "Профиль Telegram";
-} else {
-  userLine.textContent = "Предпросмотр вне Telegram";
+// Telegram-клиенты (особенно Desktop) кешируют/обрезают initData между
+// открытиями мини-аппа — известный баг без официального фикса. Поэтому initData
+// используется только один раз, чтобы обменять его на собственный долгоживущий
+// токен; дальше все запросы идут с этим токеном и не зависят от того, что в
+// этот раз отдал Telegram-клиент.
+const SESSION_TOKEN_KEY = "interior-narrative:session-token";
+let sessionToken = localStorage.getItem(SESSION_TOKEN_KEY) || null;
+
+async function exchangeForSessionToken() {
+  if (!initData || !apiBaseUrl) return null;
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/exchange`, {
+      method: "POST",
+      headers: { "X-Telegram-Init-Data": initData, "ngrok-skip-browser-warning": "1" },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    sessionToken = data.session_token;
+    localStorage.setItem(SESSION_TOKEN_KEY, sessionToken);
+    return data;
+  } catch {
+    return null;
+  }
 }
 
-async function api(path, options = {}) {
+async function api(path, options = {}, _retried = false) {
   if (!apiBaseUrl) {
     throw new Error("API_URL не настроен");
   }
-  const headers = {
-    "X-Telegram-Init-Data": initData,
-    "ngrok-skip-browser-warning": "1",
-    ...(options.headers || {}),
-  };
+  if (!sessionToken) {
+    await exchangeForSessionToken();
+  }
+  const headers = { "ngrok-skip-browser-warning": "1", ...(options.headers || {}) };
+  if (sessionToken) {
+    headers["Authorization"] = `Bearer ${sessionToken}`;
+  } else {
+    headers["X-Telegram-Init-Data"] = initData;
+  }
   if (options.body) {
     headers["Content-Type"] = "application/json";
   }
   const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  if (response.status === 401 && !_retried) {
+    sessionToken = null;
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+    if (await exchangeForSessionToken()) {
+      return api(path, options, true);
+    }
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.detail || `HTTP ${response.status}`);
   }
   return response.status === 204 ? null : response.json();
 }
+
+async function initIdentity() {
+  if (sessionToken) {
+    try {
+      const me = await api("/api/v1/me");
+      userLine.textContent = me.username ? `@${me.username}` : me.first_name || "Профиль Telegram";
+      return;
+    } catch {
+      // токен истёк/отозван — попробуем обменять initData заново ниже
+    }
+  }
+  const exchanged = await exchangeForSessionToken();
+  if (exchanged) {
+    userLine.textContent = exchanged.username ? `@${exchanged.username}` : exchanged.first_name || "Профиль Telegram";
+  } else {
+    userLine.textContent = "Предпросмотр вне Telegram";
+  }
+}
+initIdentity();
 
 // ═══════════════════════════════════════════
 // SCREENS
