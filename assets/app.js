@@ -503,7 +503,9 @@ function renderResultDetail(result) {
     : "Рабочая гипотеза нарратива";
   document.getElementById("result-name").textContent = primary.name || result.primary_narrative_key;
   document.getElementById("result-subtitle").textContent = primary.subtitle || "";
-  document.getElementById("result-card").style.setProperty("--arch-color", primary.color || "#2563EB");
+  // Цвет архетипа ставим на весь экран, а не только на карточку: по нему
+  // красится и надпись «Ваш ведущий архетип» над карточкой.
+  document.getElementById("screen-results").style.setProperty("--arch-color", primary.color || "#2563EB");
 
   const imageWrap = document.getElementById("result-image-wrap");
   if (isDesignerProfile) {
