@@ -803,6 +803,10 @@ topbarButton.addEventListener("click", () => {
   exitToStart();
 });
 
+// Клик по лого — домой: привычный веб-паттерн, работает с любого экрана.
+// Черновик теста при этом не теряется, сессия остаётся возобновляемой.
+document.getElementById("brand-home").addEventListener("click", exitToStart);
+
 setTopbarMode("history");
 
 if (new URLSearchParams(window.location.search).get("screen") === "results") {
