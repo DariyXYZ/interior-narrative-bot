@@ -8,7 +8,19 @@ if (tg) {
   tg.expand();
 }
 
-const initData = tg?.initData || "";
+// initData не const: Telegram отдаёт пустую строку, когда вебвью восстановили
+// из кеша, но при возврате приложения на передний план значение часто приходит
+// снова. Держим последнее непустое и перечитываем по событию activated.
+let initData = tg?.initData || "";
+
+function refreshInitData() {
+  const fresh = tg?.initData || "";
+  if (fresh && fresh !== initData) {
+    initData = fresh;
+    return true;
+  }
+  return false;
+}
 
 // Telegram-клиенты (особенно Desktop) кешируют/обрезают initData между
 // открытиями мини-аппа — известный баг без официального фикса. Поэтому initData
@@ -147,7 +159,12 @@ async function api(path, options = {}, _retried = false) {
     // fetch не различает «нет сети», «сервер выключен» и «домен не отвечает» —
     // всё это один TypeError. Отделяем хотя бы таймаут и офлайн.
     if (cause.name === "AbortError") throw new ApiError("timeout");
-    throw new ApiError(navigator.onLine === false ? "offline" : "network");
+    if (navigator.onLine === false) throw new ApiError("offline");
+    if (!_retried) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return api(path, options, true);
+    }
+    throw new ApiError("network");
   } finally {
     clearTimeout(timer);
   }
@@ -949,6 +966,36 @@ topbarButton.addEventListener("click", () => {
 // Клик по лого — домой: привычный веб-паттерн, работает с любого экрана.
 // Черновик теста при этом не теряется, сессия остаётся возобновляемой.
 document.getElementById("brand-home").addEventListener("click", exitToStart);
+
+// ═══════════════════════════════════════════
+// САМОВОССТАНОВЛЕНИЕ
+// Вебвью, поднятый из кеша, приходит без initData, а связь может отвалиться на
+// минуту. И то и другое чинится само: при возврате приложения на передний план
+// перечитываем initData, при возврате сети — повторяем вход. Просить человека
+// слать /start нужно только если и это не помогло.
+// ═══════════════════════════════════════════
+
+let recovering = false;
+
+async function recoverIdentity({ force = false } = {}) {
+  if (recovering) return;
+  const gotFreshInitData = refreshInitData();
+  if (!force && !gotFreshInitData && sessionToken) return;
+  recovering = true;
+  try {
+    await initIdentity();
+    // Пропала причина — убираем и сообщение о ней.
+    if (sessionToken && !screens.start.hidden && statusNode.querySelector(".error-text")) {
+      statusNode.textContent = "";
+    }
+  } finally {
+    recovering = false;
+  }
+}
+
+tg?.onEvent?.("activated", () => recoverIdentity());
+document.addEventListener("visibilitychange", () => { if (!document.hidden) recoverIdentity(); });
+window.addEventListener("online", () => recoverIdentity({ force: true }));
 
 setTopbarMode("history");
 
