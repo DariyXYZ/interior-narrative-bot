@@ -71,15 +71,38 @@ button { font: inherit; }
 .status { margin: 0; }
 
 .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+
+.brand-home {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex: none;
+  line-height: 0;
+  transition: transform .12s ease;
+}
+.brand-home:active { transform: scale(.94); }
+.brand-home:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 36%, transparent); outline-offset: 3px; }
+
 .brand-logo {
   width: 40px;
   height: 40px;
   flex: none;
   display: block;
+  /* Медленное вращение прячет стык петли: ролик не зациклен, играется
+     пинг-понгом, и на развороте движение внутри сферы заметно без него. */
+  animation: orb-spin 42s linear infinite;
   /* Ролик снят на чёрном: остатки тёмной каймы по краю гасим лёгкой растушёвкой. */
   -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 68%, transparent 99%);
   mask-image: radial-gradient(circle at 50% 50%, #000 68%, transparent 99%);
 }
+
+/* Вращение не выключается при prefers-reduced-motion: сама анимированная WebP
+   всё равно играет (браузеры её не останавливают), а без вращения возвращается
+   тот самый видимый стык петли. Один оборот за 42 секунды — движение на грани
+   заметности, вестибулярного риска тут нет. */
+@keyframes orb-spin { to { transform: rotate(360deg); } }
 
 .product-name { font-size: 15px; font-weight: 650; }
 .user-line { margin-top: 3px; color: var(--text-muted); font-size: 13px; }
