@@ -33,6 +33,18 @@ body {
 
 button { font: inherit; }
 
+/* ── Иконки (google/material-design-icons) ── */
+
+.icon-sprite { display: none; }
+
+.ic {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: currentColor;
+  display: block;
+}
+
 .shell {
   width: min(100%, 720px);
   margin: 0 auto;
@@ -59,7 +71,10 @@ button { font: inherit; }
 .user-line { margin-top: 3px; color: var(--text-muted); font-size: 13px; }
 
 .history-button {
-  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -68,6 +83,17 @@ button { font: inherit; }
   transition: border-color .15s, background-color .15s;
 }
 .history-button:hover { border-color: var(--accent); background: var(--accent-light); }
+.history-button .ic { color: var(--text-secondary); }
+.history-button:hover .ic { color: var(--accent); }
+
+/* Режим «закрыть» — на истории и на открытом результате кнопка становится
+   крестиком: выход очевиден, и не выглядит как вход в тот же раздел. */
+.history-button[data-mode="close"] {
+  padding: 8px;
+  border-radius: 50%;
+}
+.history-button[data-mode="close"] .history-button-label { display: none; }
+.history-button[hidden] { display: none; }
 
 .history-button:focus-visible,
 .test-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 36%, transparent); outline-offset: 2px; }
@@ -91,7 +117,7 @@ button { font: inherit; }
 .test-card {
   width: 100%;
   display: grid;
-  grid-template-columns: 34px 1fr 22px;
+  grid-template-columns: 34px 1fr 24px;
   gap: 12px;
   align-items: start;
   padding: 20px 18px;
@@ -108,12 +134,30 @@ button { font: inherit; }
 .test-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
 .test-card:active { transform: scale(.995); }
 
-.test-number { color: var(--text-muted); font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+/* Номер, заголовок и стрелка держатся на одной линии: у боковых колонок высота
+   строки ровно как у первой строки заголовка (--title-line), содержимое по её
+   центру. Раньше стрелка центрировалась по всей карточке и уезжала вниз. */
+.test-card { --title-line: 24px; }
+
+.test-number {
+  display: flex;
+  align-items: center;
+  height: var(--title-line);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
 .test-content { display: grid; gap: 8px; }
-.test-content strong { font-size: 19px; line-height: 1.25; font-weight: 650; letter-spacing: -0.01em; }
+.test-title { font-size: 19px; line-height: var(--title-line); font-weight: 650; letter-spacing: -0.01em; }
 .test-content > span:not(.test-meta) { color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
 .test-meta { color: var(--text-muted); font-size: 12px; }
-.arrow { align-self: center; color: var(--accent); font-size: 20px; }
+.arrow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--title-line);
+  color: var(--accent);
+}
 
 .status { min-height: 22px; padding-top: 16px; color: var(--text-muted); font-size: 13px; }
 
@@ -167,6 +211,9 @@ button { font: inherit; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:active { transform: scale(.98); }
 .btn-primary:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+.btn-with-icon { display: inline-flex; align-items: center; gap: 8px; }
+.btn-with-icon .ic { width: 18px; height: 18px; }
 
 .btn-ghost { background: transparent; border: 1.5px solid var(--border); color: var(--accent); }
 .btn-ghost:hover { border-color: var(--accent); background: var(--accent-light); color: var(--text-primary); }
