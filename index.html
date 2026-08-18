@@ -25,9 +25,15 @@
 
   <main class="shell">
     <header class="topbar">
-      <div>
-        <p class="product-name">IND · Интерьер</p>
-        <p class="user-line" id="user-line">Загрузка профиля…</p>
+      <div class="brand">
+        <!-- Анимированное лого: WebP с альфой (чёрный фон ролика выбит по
+             яркости, кроп ровно по сфере). Обычный <img> — не video: не зависит
+             от политик автоплея в Telegram WebView. -->
+        <img class="brand-logo" src="./assets/logo-orb.webp?v=4" width="40" height="40" alt="" aria-hidden="true">
+        <div>
+          <p class="product-name">IND · Интерьер</p>
+          <p class="user-line" id="user-line">Загрузка профиля…</p>
+        </div>
       </div>
       <button class="history-button" id="history-button" type="button" data-mode="history">
         <svg class="ic" aria-hidden="true"><use href="#ic-history"></use></svg>
