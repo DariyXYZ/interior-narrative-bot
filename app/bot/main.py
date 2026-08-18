@@ -14,13 +14,50 @@ from app.bot.keyboards import app_keyboard
 from app.core.config import get_settings
 
 COMMANDS = [
-    BotCommand(command="start", description="Главное меню"),
+    BotCommand(command="start", description="О боте и тестах"),
     BotCommand(command="app", description="Открыть приложение"),
-    BotCommand(command="info", description="Что умеет бот"),
-    BotCommand(command="results", description="Мои результаты"),
-    BotCommand(command="help", description="Как пользоваться"),
+    BotCommand(command="help", description="Если что-то не работает"),
     BotCommand(command="privacy", description="Какие данные сохраняются"),
 ]
+
+SUPPORT_CONTACT = "@ded_indigo"
+
+# Приветствие несёт то, что раньше пряталось в /info: без него первое сообщение
+# не объясняло, зачем бот нужен.
+WELCOME = (
+    "Привет, {name}.\n\n"
+    "Это внутренний инструмент дизайнеров интерьеров IND. Два независимых теста:\n\n"
+    "01 · <b>Какой вы тип дизайнера</b> — определяет ваш авторский профиль: "
+    "как вы находите идею, строите пространство и принимаете проектные решения. "
+    "30 вопросов, около 10 минут.\n\n"
+    "02 · <b>Нарратив проекта</b> — по полному брифу подбирает основной и два "
+    "альтернативных нарратива, аргументацию для заказчика, визуальный язык "
+    "и проекты-референсы. 35 вопросов, 10–15 минут.\n\n"
+    "Результаты сохраняются в вашей истории — тесты можно проходить заново, "
+    "а прерванный тест продолжится с того же вопроса.\n\n"
+    "<b>Команды</b>\n"
+    "/app — открыть приложение\n"
+    "/help — если что-то не работает\n"
+    "/privacy — какие данные сохраняются"
+)
+
+HELP = (
+    "<b>Если что-то не работает</b>\n\n"
+    "<b>«Открыто вне Telegram»</b> — Telegram не передал ваш профиль. Так бывает, "
+    "когда приложение открыли ссылкой, а не кнопкой. Нажмите «Открыть приложение» "
+    "под полем ввода; если кнопки нет — отправьте /start. "
+    "С интернетом и VPN это не связано.\n\n"
+    "<b>«Не получается связаться с сервером», код СЕТЬ-2</b> — приложение не "
+    "достучалось до сервера. Проверьте интернет и повторите через пару минут: "
+    "сервер иногда ненадолго уходит и поднимается сам.\n\n"
+    "<b>«Сервер не ответил за 15 секунд», СЕТЬ-3</b> — медленная связь, "
+    "нажмите «Попробовать ещё раз».\n\n"
+    "<b>«Telegram не подтвердил вход», ВХОД-1</b> — закройте приложение и откройте "
+    "заново кнопкой. Не помогло — отправьте /start, кнопка обновится.\n\n"
+    "<b>Тест прервался</b> — ничего не потеряно: ответы сохраняются по ходу. "
+    "Откройте тест снова и продолжите с того же вопроса.\n\n"
+    f"Не починилось — напишите {SUPPORT_CONTACT}, приложите код ошибки и скриншот."
+)
 
 
 async def main() -> None:
@@ -34,42 +71,15 @@ async def main() -> None:
     @dp.message(CommandStart())
     async def start(message: Message) -> None:
         name = html.escape(message.from_user.first_name or "коллега")
-        await message.answer(
-            f"Привет, {name}.\n\n"
-            "Здесь два инструмента: профиль вашего проектного мышления и подбор нарратива для конкретного брифа.",
-            reply_markup=app_keyboard(webapp_url),
-        )
+        await message.answer(WELCOME.format(name=name), reply_markup=app_keyboard(webapp_url))
 
     @dp.message(Command("app"))
     async def open_app(message: Message) -> None:
         await message.answer("Откройте приложение кнопкой ниже.", reply_markup=app_keyboard(webapp_url))
 
-    @dp.message(Command("info"))
-    async def info(message: Message) -> None:
-        await message.answer(
-            "<b>Что умеет бот</b>\n\n"
-            "Внутренний инструмент дизайнеров интерьеров IND. Два независимых теста:\n\n"
-            "01 · <b>Какой вы тип дизайнера</b> — определяет ваш авторский профиль: "
-            "как вы находите идею, строите пространство и принимаете решения.\n\n"
-            "02 · <b>Нарратив проекта</b> — после полного брифа подбирает основной "
-            "и два альтернативных нарратива, аргументацию для заказчика, "
-            "визуальный язык и проекты-референсы.\n\n"
-            "Результаты сохраняются в вашей истории — тесты можно проходить заново.",
-            reply_markup=app_keyboard(webapp_url),
-        )
-
-    @dp.message(Command("results"))
-    async def open_results(message: Message) -> None:
-        await message.answer("История прохождений откроется в приложении.", reply_markup=app_keyboard(webapp_url, "results"))
-
     @dp.message(Command("help"))
     async def help_message(message: Message) -> None:
-        await message.answer(
-            "<b>Как пользоваться</b>\n\n"
-            "1. Откройте приложение.\n"
-            "2. Выберите один из двух независимых тестов.\n"
-            "3. Результат сохранится в вашей внутренней истории."
-        )
+        await message.answer(HELP, reply_markup=app_keyboard(webapp_url))
 
     @dp.message(Command("privacy"))
     async def privacy(message: Message) -> None:

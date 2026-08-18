@@ -183,6 +183,10 @@ async function initIdentity() {
   const exchanged = await exchangeForSessionToken();
   if (exchanged) {
     userLine.textContent = exchanged.username ? `@${exchanged.username}` : exchanged.first_name || "Профиль Telegram";
+  } else if (sessionToken) {
+    // Токен цел (401 бы его стёр) — значит не достучались до сервера, а не
+    // потеряли вход. Тесты при этом продолжат работать по токену.
+    userLine.textContent = "Профиль не обновился — нет связи";
   } else if (!initData) {
     userLine.textContent = "Открыто вне Telegram";
   } else {
@@ -270,13 +274,18 @@ function setStatus(text) {
 // START → выбор теста
 // ═══════════════════════════════════════════
 
+// Работать можно и без свежего initData — если с прошлого раза остался живой
+// сессионный токен. Именно ради этого он и заводился: Telegram-клиент часто
+// отдаёт пустой initData при повторном открытии, и упираться в него нельзя.
+const hasIdentity = () => Boolean(initData || sessionToken);
+
 const NOT_IN_TELEGRAM =
   "Приложение открыто вне Telegram — профиль не передан, поэтому тест не начать. "
   + "Откройте его кнопкой «Открыть приложение» в чате с ботом. "
   + "Если вы так и сделали, отправьте боту /start: Telegram иногда держит старую кнопку.";
 
 async function startTest(testKey) {
-  if (!initData) {
+  if (!hasIdentity()) {
     setStatus(NOT_IN_TELEGRAM);
     return;
   }
@@ -868,7 +877,7 @@ const TEST_LABELS = {
 };
 
 async function showHistory() {
-  if (!initData) {
+  if (!hasIdentity()) {
     setStatus(NOT_IN_TELEGRAM);
     return;
   }
