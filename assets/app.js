@@ -35,9 +35,96 @@ async function exchangeForSessionToken() {
   }
 }
 
+// ═══════════════════════════════════════════
+// ОШИБКИ
+// Раньше наружу летел текст исключения («Failed to fetch»), по которому нельзя
+// понять ни причины, ни что делать. Теперь каждая ошибка получает вид (kind),
+// а человеку показывается объяснение: подождать, переоткрыть или писать людям.
+// ═══════════════════════════════════════════
+
+const REQUEST_TIMEOUT_MS = 15000;
+
+class ApiError extends Error {
+  constructor(kind, { status = null, detail = "" } = {}) {
+    super(detail || kind);
+    this.kind = kind;
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+const SUPPORT_CONTACT = (window.APP_CONFIG?.SUPPORT_CONTACT || "").trim();
+const supportLine = SUPPORT_CONTACT
+  ? `Если не пройдёт за десять минут — напишите ${SUPPORT_CONTACT}.`
+  : "Если не пройдёт за десять минут — сообщите администратору бота.";
+
+const ERROR_TEXTS = {
+  offline: () => ({
+    text: "Телефон не в сети. Включите интернет или Wi-Fi и попробуйте снова.",
+    retry: true,
+    code: "СЕТЬ-1",
+  }),
+  network: () => ({
+    text: `Не получается связаться с сервером. Обычно это интернет или VPN: проверьте связь и попробуйте ещё раз. Сервер могли ненадолго выключить — тогда через пару минут заработает само. ${supportLine}`,
+    retry: true,
+    code: "СЕТЬ-2",
+  }),
+  timeout: () => ({
+    text: "Сервер не ответил за 15 секунд — похоже, связь очень медленная. Попробуйте ещё раз.",
+    retry: true,
+    code: "СЕТЬ-3",
+  }),
+  auth: () => ({
+    text: "Telegram не подтвердил вход. Закройте приложение и откройте заново кнопкой «Открыть приложение» в чате с ботом. Если не помогло — отправьте боту /start, кнопка обновится.",
+    retry: false,
+    code: "ВХОД-1",
+  }),
+  server: (e) => ({
+    text: `Сервер ответил ошибкой — это поломка на нашей стороне, не у вас. Попробуйте через минуту. ${supportLine}`,
+    retry: true,
+    code: `СЕРВЕР-${e.status || "500"}`,
+  }),
+  missing: (e) => ({
+    text: e.detail || "Данные не нашлись на сервере. Вернитесь на главный экран и начните заново.",
+    retry: false,
+    code: "НЕТ-ДАННЫХ",
+  }),
+  client: (e) => ({ text: e.detail || "Запрос не принят сервером.", retry: false, code: null }),
+  config: () => ({
+    text: "Приложение собрано без адреса сервера. Это ошибка сборки — сообщите администратору бота.",
+    retry: false,
+    code: "КОНФИГ-1",
+  }),
+};
+
+function describeError(error) {
+  const kind = error instanceof ApiError ? error.kind : "network";
+  const build = ERROR_TEXTS[kind] || ERROR_TEXTS.network;
+  const described = build(error);
+  return { ...described, message: described.code ? `${described.text} (код ${described.code})` : described.text };
+}
+
+// Показывает ошибку и, если повтор имеет смысл, кнопку «Попробовать ещё раз».
+function renderError(node, error, retryFn) {
+  const { message, retry } = describeError(error);
+  node.innerHTML = "";
+  const line = document.createElement("span");
+  line.className = "error-text";
+  line.textContent = message;
+  node.appendChild(line);
+  if (retry && retryFn) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-ghost btn-retry";
+    btn.textContent = "Попробовать ещё раз";
+    btn.addEventListener("click", () => { node.innerHTML = ""; retryFn(); });
+    node.appendChild(btn);
+  }
+}
+
 async function api(path, options = {}, _retried = false) {
   if (!apiBaseUrl) {
-    throw new Error("API_URL не настроен");
+    throw new ApiError("config");
   }
   if (!sessionToken) {
     await exchangeForSessionToken();
@@ -51,7 +138,20 @@ async function api(path, options = {}, _retried = false) {
   if (options.body) {
     headers["Content-Type"] = "application/json";
   }
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  let response;
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers, signal: abort.signal });
+  } catch (cause) {
+    // fetch не различает «нет сети», «сервер выключен» и «домен не отвечает» —
+    // всё это один TypeError. Отделяем хотя бы таймаут и офлайн.
+    if (cause.name === "AbortError") throw new ApiError("timeout");
+    throw new ApiError(navigator.onLine === false ? "offline" : "network");
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (response.status === 401 && !_retried) {
     sessionToken = null;
     localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -61,7 +161,11 @@ async function api(path, options = {}, _retried = false) {
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.detail || `HTTP ${response.status}`);
+    const detail = payload.detail || "";
+    if (response.status === 401 || response.status === 403) throw new ApiError("auth", { status: response.status, detail });
+    if (response.status === 404) throw new ApiError("missing", { status: 404, detail });
+    if (response.status >= 500) throw new ApiError("server", { status: response.status, detail });
+    throw new ApiError("client", { status: response.status, detail });
   }
   return response.status === 204 ? null : response.json();
 }
@@ -79,8 +183,10 @@ async function initIdentity() {
   const exchanged = await exchangeForSessionToken();
   if (exchanged) {
     userLine.textContent = exchanged.username ? `@${exchanged.username}` : exchanged.first_name || "Профиль Telegram";
+  } else if (!initData) {
+    userLine.textContent = "Открыто вне Telegram";
   } else {
-    userLine.textContent = "Предпросмотр вне Telegram";
+    userLine.textContent = "Профиль не загрузился — нет связи";
   }
 }
 initIdentity();
@@ -164,9 +270,14 @@ function setStatus(text) {
 // START → выбор теста
 // ═══════════════════════════════════════════
 
+const NOT_IN_TELEGRAM =
+  "Приложение открыто вне Telegram — профиль не передан, поэтому тест не начать. "
+  + "Откройте его кнопкой «Открыть приложение» в чате с ботом. "
+  + "Если вы так и сделали, отправьте боту /start: Telegram иногда держит старую кнопку.";
+
 async function startTest(testKey) {
   if (!initData) {
-    setStatus("Запустите Mini App из Telegram, чтобы начать тест.");
+    setStatus(NOT_IN_TELEGRAM);
     return;
   }
   if (busy) return;
@@ -177,14 +288,23 @@ async function startTest(testKey) {
   }
 
   busy = true;
-  setStatus("Загружаем вопросы…");
+  const slow = slowHint("Загружаем вопросы…", "Загружаем вопросы… связь медленная, ещё пробуем");
   try {
     await beginSession(testKey, null);
   } catch (error) {
-    setStatus(`Не удалось начать тест: ${error.message}`);
+    renderError(statusNode, error, () => startTest(testKey));
   } finally {
+    slow.stop();
     busy = false;
   }
+}
+
+// Долгое ожидание без единого слова читается как зависание. Через 6 секунд
+// подменяем текст, чтобы человек понимал: приложение живо, тормозит связь.
+function slowHint(text, slowText, node = statusNode) {
+  node.textContent = text;
+  const timer = setTimeout(() => { node.textContent = slowText; }, 6000);
+  return { stop: () => clearTimeout(timer) };
 }
 
 async function beginSession(testKey, projectId) {
@@ -260,7 +380,7 @@ document.getElementById("project-form").addEventListener("submit", async (event)
     document.getElementById("project-status").textContent = "";
     await beginSession("project-narrative", project.id);
   } catch (error) {
-    document.getElementById("project-status").textContent = `Не удалось создать проект: ${error.message}`;
+    renderError(document.getElementById("project-status"), error, () => form.requestSubmit());
   } finally {
     busy = false;
   }
@@ -321,6 +441,15 @@ function renderQuestion() {
   nextBtn.disabled = question.multi && selected.size === 0;
 }
 
+// В строке автосохранения места мало: даём короткую причину, подробности с
+// кнопкой повтора человек увидит, если тест сорвётся совсем.
+function saveFailureText(error) {
+  const { code } = describeError(error);
+  if (code && code.startsWith("СЕТЬ")) return "Ответ не ушёл — нет связи. Нажмите вариант ещё раз.";
+  if (code === "ВХОД-1") return "Вход слетел. Откройте приложение заново из чата.";
+  return "Ответ не сохранился. Нажмите вариант ещё раз.";
+}
+
 // Multi-select: клик копит выбор локально, отправляем всё разом по «Далее».
 // «Не знаю» эксклюзивен с остальными вариантами — иначе итоговый набор
 // противоречив (и «не в курсе», и конкретный ответ одновременно).
@@ -369,7 +498,7 @@ async function chooseSingleOption(questionId, optionId, buttonEl) {
     await submitAnswer(questionId, [optionId]);
     indicator.textContent = "";
   } catch (error) {
-    indicator.textContent = `Не сохранилось: ${error.message}`;
+    indicator.textContent = saveFailureText(error);
     document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = false; });
     savingAnswer = false;
     return;
@@ -413,7 +542,7 @@ document.getElementById("btn-next").addEventListener("click", async () => {
     await submitAnswer(question.id, selected);
     indicator.textContent = "";
   } catch (error) {
-    indicator.textContent = `Не сохранилось: ${error.message}`;
+    indicator.textContent = saveFailureText(error);
     document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = false; });
     document.getElementById("btn-next").disabled = false;
     savingAnswer = false;
@@ -444,8 +573,11 @@ function exitToStart() {
 
 async function finishQuiz() {
   setStatus("");
-  document.getElementById("q-text").textContent = "Считаем результат…";
-  document.getElementById("options-list").innerHTML = "";
+  const qText = document.getElementById("q-text");
+  qText.textContent = "Считаем результат…";
+  const optionsList = document.getElementById("options-list");
+  optionsList.innerHTML = "";
+  const slow = slowHint("Считаем результат…", "Считаем результат… связь медленная, ещё пробуем", qText);
   try {
     const result = await api(`/api/v1/sessions/${quiz.sessionId}/complete`, { method: "POST" });
     localStorage.removeItem(sessionKey(quiz.testKey));
@@ -456,7 +588,10 @@ async function finishQuiz() {
     resultOrigin = "quiz";
     showScreen("results");
   } catch (error) {
-    document.getElementById("q-text").textContent = `Не удалось получить результат: ${error.message}`;
+    qText.textContent = "Ответы сохранены, но результат не пришёл";
+    renderError(optionsList, error, () => finishQuiz());
+  } finally {
+    slow.stop();
   }
 }
 
@@ -734,14 +869,14 @@ const TEST_LABELS = {
 
 async function showHistory() {
   if (!initData) {
-    setStatus("История доступна при запуске из Telegram.");
+    setStatus(NOT_IN_TELEGRAM);
     return;
   }
   if (busy) return;
   busy = true;
   showScreen("history");
   const list = document.getElementById("history-list");
-  list.innerHTML = "<p class=\"status\">Загружаем…</p>";
+  list.innerHTML = "<p class=\"status\">Загружаем историю…</p>";
   try {
     const results = await api("/api/v1/results");
     if (!results.length) {
@@ -763,7 +898,7 @@ async function showHistory() {
       });
     }
   } catch (error) {
-    list.innerHTML = `<p class="status">Не удалось загрузить историю: ${error.message}</p>`;
+    renderError(list, error, () => showHistory());
   } finally {
     busy = false;
   }
@@ -778,8 +913,7 @@ async function openHistoryResult(sessionId) {
     resultOrigin = "history";
     showScreen("results");
   } catch (error) {
-    setStatus(`Не удалось открыть результат: ${error.message}`);
-    showScreen("start");
+    renderError(document.getElementById("history-list"), error, () => openHistoryResult(sessionId));
   } finally {
     busy = false;
   }
