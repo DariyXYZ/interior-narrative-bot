@@ -89,7 +89,8 @@ const ERROR_TEXTS = {
   auth: () => ({
     text: "Telegram не подтвердил вход. Закройте приложение и откройте заново кнопкой «Открыть приложение» в чате с ботом. Если не помогло — отправьте боту /start, кнопка обновится.",
     retry: false,
-    code: "ВХОД-1",
+    // Без кода: он один такой, и в /help по нему всё равно нечего искать.
+    code: null,
   }),
   server: (e) => ({
     text: `Сервер ответил ошибкой — это поломка на нашей стороне, не у вас. Попробуйте через минуту. ${supportLine}`,
@@ -113,7 +114,7 @@ function describeError(error) {
   const kind = error instanceof ApiError ? error.kind : "network";
   const build = ERROR_TEXTS[kind] || ERROR_TEXTS.network;
   const described = build(error);
-  return { ...described, message: described.code ? `${described.text} (код ${described.code})` : described.text };
+  return { ...described, kind, message: described.code ? `${described.text} (код ${described.code})` : described.text };
 }
 
 // Показывает ошибку и, если повтор имеет смысл, кнопку «Попробовать ещё раз».
@@ -470,9 +471,11 @@ function renderQuestion() {
 // В строке автосохранения места мало: даём короткую причину, подробности с
 // кнопкой повтора человек увидит, если тест сорвётся совсем.
 function saveFailureText(error) {
-  const { code } = describeError(error);
-  if (code && code.startsWith("СЕТЬ")) return "Ответ не ушёл — нет связи. Нажмите вариант ещё раз.";
-  if (code === "ВХОД-1") return "Вход слетел. Откройте приложение заново из чата.";
+  const { kind } = describeError(error);
+  if (kind === "offline" || kind === "network" || kind === "timeout") {
+    return "Ответ не ушёл — нет связи. Нажмите вариант ещё раз.";
+  }
+  if (kind === "auth") return "Вход слетел. Откройте приложение заново из чата.";
   return "Ответ не сохранился. Нажмите вариант ещё раз.";
 }
 
