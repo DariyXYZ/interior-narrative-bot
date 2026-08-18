@@ -301,7 +301,7 @@ button { font: inherit; }
 
 /* ── Результат: карточка ведущего нарратива ── */
 
-.result-kicker { color: var(--accent); font-size: 11px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 12px; text-align: center; }
+.result-kicker { color: var(--arch-color, var(--accent)); font-size: 11px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 12px; text-align: center; }
 
 .result-card {
   padding: 32px 28px;
@@ -357,13 +357,14 @@ button { font: inherit; }
 }
 .blindspot-block {
   padding: 14px 16px;
-  background: #FFF9F0;
-  border: 1px solid #FDE68A;
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  color: #92400E;
+  color: #9F1239;
   line-height: 1.55;
 }
+.blindspot-block strong { color: #BE123C; }
 
 /* ── Колесо профиля ── */
 
