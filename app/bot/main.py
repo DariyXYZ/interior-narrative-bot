@@ -8,7 +8,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
-from aiogram.types import BotCommand, MenuButtonWebApp, Message, WebAppInfo
+from aiogram.types import BotCommand, MenuButtonCommands, Message
 
 from app.bot.keyboards import app_keyboard
 from app.core.config import get_settings
@@ -79,12 +79,10 @@ async def main() -> None:
         )
 
     await bot.set_my_commands(COMMANDS)
-    await bot.set_chat_menu_button(
-        menu_button=MenuButtonWebApp(
-            text="Открыть приложение",
-            web_app=WebAppInfo(url=webapp_url),
-        )
-    )
+    # Боковая кнопка — список команд, а не Web App: иначе команды доступны только
+    # набором «/» вручную. Приложение открывается крупной кнопкой reply-клавиатуры
+    # (app_keyboard), так что вход в него никуда не девается.
+    await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     logging.info("Interior Narrative Bot started")
     await dp.start_polling(bot)
 

@@ -205,6 +205,11 @@ button { font: inherit; }
 
 .status { min-height: 22px; padding-top: 16px; color: var(--text-muted); font-size: 13px; }
 
+/* Текст ошибки — читаемый абзац, а не сноска: человеку по нему решать,
+   ждать или писать людям. Кнопка повтора идёт отдельной строкой. */
+.error-text { display: block; color: var(--text-secondary); font-size: 14px; line-height: 1.55; }
+.btn-retry { margin-top: 12px; padding: 11px 18px; font-size: 14px; }
+
 /* ── Общие элементы (форма, кнопки) ── */
 
 .screen { padding-top: 22px; }
