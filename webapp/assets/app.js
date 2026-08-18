@@ -97,10 +97,50 @@ const screens = {
   history: document.getElementById("screen-history"),
 };
 
+// Кнопка в шапке контекстная: на старте — вход в историю, на истории и на
+// открытом результате — крестик «закрыть». Раньше там всегда висела «История»,
+// и на самой истории кнопка вела в раздел, где ты уже находишься.
+const topbarButton = document.getElementById("history-button");
+const topbarLabel = document.getElementById("history-button-label")
+  || topbarButton.querySelector(".history-button-label");
+const topbarIcon = topbarButton.querySelector("use");
+
+const TOPBAR_MODES = {
+  history: { icon: "#ic-history", label: "История", title: "История прохождений" },
+  close: { icon: "#ic-close", label: "Закрыть", title: "Закрыть" },
+};
+
+function setTopbarMode(mode) {
+  if (mode === "hidden") {
+    topbarButton.hidden = true;
+    return;
+  }
+  const preset = TOPBAR_MODES[mode];
+  topbarButton.hidden = false;
+  topbarButton.dataset.mode = mode;
+  topbarIcon.setAttribute("href", preset.icon);
+  topbarLabel.textContent = preset.label;
+  topbarButton.setAttribute("aria-label", preset.title);
+  topbarButton.title = preset.title;
+}
+
+// Куда возвращает крестик на экране результата: сразу после теста — на старт,
+// из истории — обратно в историю, откуда пользователь и пришёл.
+let resultOrigin = "quiz";
+
+const TOPBAR_BY_SCREEN = {
+  start: "history",
+  project: "hidden",
+  question: "hidden",
+  results: "close",
+  history: "close",
+};
+
 function showScreen(name) {
   Object.entries(screens).forEach(([key, el]) => {
     el.hidden = key !== name;
   });
+  setTopbarMode(TOPBAR_BY_SCREEN[name] || "history");
   window.scrollTo({ top: 0 });
 }
 
@@ -268,8 +308,13 @@ function renderQuestion() {
     list.appendChild(btn);
   });
 
+  // На первом вопросе возвращаться некуда — вместо спрятанной кнопки даём выход
+  // из теста, иначе начатый тест некуда закрыть, кроме как убить Mini App.
   const backBtn = document.getElementById("btn-back");
-  backBtn.style.visibility = index === 0 ? "hidden" : "visible";
+  const atFirst = index === 0;
+  backBtn.dataset.mode = atFirst ? "close" : "back";
+  backBtn.querySelector("use").setAttribute("href", atFirst ? "#ic-close" : "#ic-arrow-back");
+  document.getElementById("btn-back-label").textContent = atFirst ? "Закрыть тест" : "Назад";
 
   const nextBtn = document.getElementById("btn-next");
   nextBtn.hidden = !question.multi;
@@ -380,10 +425,22 @@ document.getElementById("btn-next").addEventListener("click", async () => {
 });
 
 document.getElementById("btn-back").addEventListener("click", () => {
-  if (savingAnswer || !quiz || quiz.index === 0) return;
+  if (savingAnswer || !quiz) return;
+  if (quiz.index === 0) {
+    // Черновик сессии остаётся на сервере и в localStorage: вернётся —
+    // продолжит с того же места, а не начнёт заново.
+    exitToStart();
+    return;
+  }
   quiz.index -= 1;
   renderQuestion();
 });
+
+function exitToStart() {
+  quiz = null;
+  setStatus("");
+  showScreen("start");
+}
 
 async function finishQuiz() {
   setStatus("");
@@ -396,6 +453,7 @@ async function finishQuiz() {
     // экран — иначе на долю секунды виден предыдущий результат (screen-results
     // ещё хранит DOM от прошлого прохождения, если это уже не первый тест в сессии).
     await renderResult(result);
+    resultOrigin = "quiz";
     showScreen("results");
   } catch (error) {
     document.getElementById("q-text").textContent = `Не удалось получить результат: ${error.message}`;
@@ -652,7 +710,7 @@ function renderRankedList(ranking, isDesignerProfile) {
           <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${item.fit_percent}%;background:${item.color}"></div></div>
           <div class="score-num">${item.fit_percent}%</div>
         </div>
-        <div class="card-chevron"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="card-chevron"><svg class="ic" aria-hidden="true"><use href="#ic-expand-more"></use></svg></div>
       </div>
       <div class="card-body">${bodyParts.join("")}${tags}</div>
     `;
@@ -661,11 +719,7 @@ function renderRankedList(ranking, isDesignerProfile) {
   });
 }
 
-document.getElementById("btn-restart").addEventListener("click", () => {
-  quiz = null;
-  setStatus("");
-  showScreen("start");
-});
+document.getElementById("btn-restart").addEventListener("click", exitToStart);
 
 // ═══════════════════════════════════════════
 // ИСТОРИЯ
@@ -719,6 +773,7 @@ async function openHistoryResult(sessionId) {
   try {
     const result = await loadFullResult(sessionId);
     renderResultDetail(result);
+    resultOrigin = "history";
     showScreen("results");
   } catch (error) {
     setStatus(`Не удалось открыть результат: ${error.message}`);
@@ -728,13 +783,25 @@ async function openHistoryResult(sessionId) {
   }
 }
 
-document.getElementById("history-back").addEventListener("click", () => showScreen("start"));
-
 document.querySelectorAll("[data-test]").forEach((button) => {
   button.addEventListener("click", () => startTest(button.dataset.test));
 });
 
-document.querySelector("#history-button").addEventListener("click", showHistory);
+topbarButton.addEventListener("click", () => {
+  if (topbarButton.dataset.mode !== "close") {
+    showHistory();
+    return;
+  }
+  // Результат, открытый из истории, закрывается обратно в историю — иначе
+  // список прохождений теряется и приходится открывать его заново.
+  if (!screens.results.hidden && resultOrigin === "history") {
+    showHistory();
+    return;
+  }
+  exitToStart();
+});
+
+setTopbarMode("history");
 
 if (new URLSearchParams(window.location.search).get("screen") === "results") {
   showHistory();

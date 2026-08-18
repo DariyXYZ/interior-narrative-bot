@@ -8,18 +8,31 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Нарративы интерьера</title>
-  <link rel="stylesheet" href="./assets/styles.css">
+  <link rel="stylesheet" href="./assets/styles.css?v=4">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./config.js"></script>
 </head>
 <body>
+  <!-- Иконки: google/material-design-icons, 24dp, Apache 2.0. Спрайт инлайном —
+       внешние шрифты иконок в Telegram WebView грузятся ненадёжно. -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+    <symbol id="ic-arrow-forward" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></symbol>
+    <symbol id="ic-arrow-back" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
+    <symbol id="ic-history" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></symbol>
+    <symbol id="ic-expand-more" viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></symbol>
+  </svg>
+
   <main class="shell">
     <header class="topbar">
       <div>
         <p class="product-name">IND · Интерьер</p>
         <p class="user-line" id="user-line">Загрузка профиля…</p>
       </div>
-      <button class="history-button" id="history-button" type="button">История</button>
+      <button class="history-button" id="history-button" type="button" data-mode="history">
+        <svg class="ic" aria-hidden="true"><use href="#ic-history"></use></svg>
+        <span class="history-button-label">История</span>
+      </button>
     </header>
 
     <section class="screen" id="screen-start">
@@ -32,21 +45,21 @@
         <button class="test-card" data-test="designer-profile" type="button">
           <span class="test-number">01</span>
           <span class="test-content">
-            <strong>Какой вы тип дизайнера</strong>
+            <strong class="test-title">Какой вы тип дизайнера</strong>
             <span>30 вопросов о том, как вы находите идею, строите пространство и принимаете проектные решения.</span>
             <span class="test-meta">Первый результат · 10 минут</span>
           </span>
-          <span class="arrow" aria-hidden="true">→</span>
+          <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-forward"></use></svg></span>
         </button>
 
         <button class="test-card" data-test="project-narrative" type="button">
           <span class="test-number">02</span>
           <span class="test-content">
-            <strong>Нарратив для проекта</strong>
+            <strong class="test-title">Нарратив для проекта</strong>
             <span>Разбор полного брифа: основной стратегический маршрут, две альтернативы и конкурсные референсы.</span>
             <span class="test-meta">Для нового проекта · 10–15 минут</span>
           </span>
-          <span class="arrow" aria-hidden="true">→</span>
+          <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-forward"></use></svg></span>
         </button>
       </div>
 
@@ -100,7 +113,11 @@
       <div class="options" id="options-list"></div>
 
       <div class="quiz-actions">
-        <button type="button" class="btn-ghost" id="btn-back">Назад</button>
+        <!-- На первом вопросе превращается в «Закрыть тест» (см. renderQuestion). -->
+        <button type="button" class="btn-ghost btn-with-icon" id="btn-back" data-mode="back">
+          <svg class="ic" aria-hidden="true"><use href="#ic-arrow-back"></use></svg>
+          <span id="btn-back-label">Назад</span>
+        </button>
         <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
         <button type="button" class="btn-primary" id="btn-next" hidden>Далее</button>
       </div>
@@ -144,12 +161,9 @@
         <h2>История прохождений</h2>
       </div>
       <div class="history-list" id="history-list"></div>
-      <div class="result-actions">
-        <button type="button" class="btn-ghost" id="history-back">На главный экран</button>
-      </div>
     </section>
   </main>
 
-  <script type="module" src="./assets/app.js"></script>
+  <script type="module" src="./assets/app.js?v=4"></script>
 </body>
 </html>
