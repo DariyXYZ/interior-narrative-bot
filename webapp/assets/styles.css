@@ -246,6 +246,18 @@ button { font: inherit; }
 }
 
 .quiz-actions { padding-top: 20px; gap: 10px; }
+.quiz-actions .btn-ghost,
+.quiz-actions .btn-primary { white-space: nowrap; }
+
+/* Самый тесный случай — первый вопрос одиночного типа: «Закрыть тест» и
+   «Ещё не знаю» вместе шире 360-пиксельного экрана. Подписи там сокращать
+   нельзя, поэтому ужимаем поля самих кнопок. */
+@media (max-width: 380px) {
+  .quiz-actions .btn-ghost { padding-left: 12px; padding-right: 12px; font-size: 14px; }
+  .quiz-actions #btn-back { padding-left: 10px; }
+  .quiz-actions #btn-dunno { padding-right: 10px; }
+  .quiz-actions .btn-with-icon { gap: 6px; }
+}
 
 .btn-primary,
 .btn-ghost {
@@ -334,7 +346,8 @@ button { font: inherit; }
 .option-btn.chosen { border-color: var(--accent); background: var(--accent-light); }
 .option-btn.dunno { color: var(--text-muted); font-style: italic; border-style: dashed; }
 
-.save-indicator { flex: 1; font-size: 12px; color: var(--text-muted); min-height: 16px; text-align: center; }
+.save-note { margin-top: 12px; min-height: 18px; font-size: 13px; line-height: 1.45;
+  color: var(--text-secondary); text-align: center; }
 
 /* «Ещё не знаю» — приглушённая кнопка того же роста, что «Назад»: это выход
    из вопроса, а не ответ, и притягивать взгляд ей незачем. */
