@@ -8,10 +8,13 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
-from aiogram.types import BotCommand, MenuButtonCommands, Message
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import BotCommand, FSInputFile, MenuButtonCommands, Message
 
 from app.bot.keyboards import app_keyboard
-from app.core.config import get_settings
+from app.core.config import BASE_DIR, get_settings
+
+WELCOME_IMAGE = BASE_DIR / "docs" / "welcome.jpg"
 
 COMMANDS = [
     BotCommand(command="start", description="О боте и тестах"),
@@ -66,10 +69,31 @@ async def main() -> None:
     bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
+    # file_id первой отправки: Telegram хранит картинку у себя, дальше шлём
+    # ссылкой на неё, а не перезаливаем файл на каждый /start.
+    welcome_photo_id: str | None = None
+
     @dp.message(CommandStart())
     async def start(message: Message) -> None:
+        nonlocal welcome_photo_id
         name = html.escape(message.from_user.first_name or "коллега")
-        await message.answer(WELCOME.format(name=name), reply_markup=app_keyboard(webapp_url))
+        caption = WELCOME.format(name=name)
+        keyboard = app_keyboard(webapp_url)
+
+        if not WELCOME_IMAGE.exists():
+            logging.warning("Нет приветственной картинки: %s", WELCOME_IMAGE)
+            await message.answer(caption, reply_markup=keyboard)
+            return
+
+        photo = welcome_photo_id or FSInputFile(WELCOME_IMAGE)
+        try:
+            sent = await message.answer_photo(photo, caption=caption, reply_markup=keyboard)
+        except TelegramBadRequest:
+            # Протухший file_id (например, после смены бота) — перезальём файл.
+            welcome_photo_id = None
+            sent = await message.answer_photo(FSInputFile(WELCOME_IMAGE), caption=caption, reply_markup=keyboard)
+        if welcome_photo_id is None and sent.photo:
+            welcome_photo_id = sent.photo[-1].file_id
 
     @dp.message(Command("app"))
     async def open_app(message: Message) -> None:
