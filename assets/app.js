@@ -464,7 +464,11 @@ function renderQuestion() {
   backBtn.querySelector("use").setAttribute("href", atFirst ? "#ic-close" : "#ic-arrow-back");
   const closeLabel = question.multi ? "Закрыть" : "Закрыть тест";
   document.getElementById("btn-back-label").textContent = atFirst ? closeLabel : "Назад";
-  document.querySelector("#btn-dunno span").textContent = question.multi ? "Не знаю" : "Ещё не знаю";
+  // Тест 1 — про самого автора: там уместно «Пропустить». Тест 2 — про факты проекта,
+  // которых человек может ещё не знать, там «Не знаю».
+  document.querySelector("#btn-dunno span").textContent = quiz.testKey === "designer-profile"
+    ? "Пропустить"
+    : (question.multi ? "Не знаю" : "Ещё не знаю");
 
   syncActionButtons(question, selected);
 }
@@ -668,12 +672,16 @@ async function finishQuiz() {
 // Два процента на одном экране путают: первый — насколько ответы совпали с
 // этим архетипом, второй — на сколько вопросов вообще ответили. Второй теперь
 // объясняется словами, а не голой цифрой «уверенность 100%».
-function confidenceLine(confidence) {
+function confidenceLine(confidence, isDesignerProfile) {
   if (confidence >= 100) return "Считали по всем вашим ответам.";
+  const skipped = isDesignerProfile ? "остальные вы пропустили" : "остальные вы отметили «Не знаю»";
   if (confidence >= 70) {
-    return `Содержательных ответов — ${confidence}%, остальные вы отметили «Ещё не знаю». Данных хватает.`;
+    return `Содержательных ответов — ${confidence}%, ${skipped}. Данных хватает.`;
   }
-  return `Содержательных ответов — всего ${confidence}%, поэтому результат ориентировочный. Пройдите тест ещё раз, когда по проекту будет больше ясности.`;
+  const advice = isDesignerProfile
+    ? "Пройдите тест ещё раз и ответьте на пропущенные вопросы."
+    : "Пройдите тест ещё раз, когда по проекту будет больше ясности.";
+  return `Содержательных ответов — всего ${confidence}%, поэтому результат ориентировочный. ${advice}`;
 }
 
 async function loadFullResult(sessionId) {
@@ -734,7 +742,7 @@ function renderResultDetail(result) {
   document.getElementById("fit-label").textContent = isDesignerProfile
     ? "Совпадение с архетипом"
     : "Совпадение с нарративом";
-  document.getElementById("confidence-line").textContent = confidenceLine(result.confidence);
+  document.getElementById("confidence-line").textContent = confidenceLine(result.confidence, isDesignerProfile);
   setNoWidowText(document.getElementById("result-text"), result.result_text);
 
   const detail = document.getElementById("result-detail");
