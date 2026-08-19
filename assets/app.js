@@ -462,7 +462,9 @@ function renderQuestion() {
   const atFirst = index === 0;
   backBtn.dataset.mode = atFirst ? "close" : "back";
   backBtn.querySelector("use").setAttribute("href", atFirst ? "#ic-close" : "#ic-arrow-back");
-  document.getElementById("btn-back-label").textContent = atFirst ? "Закрыть тест" : "Назад";
+  const closeLabel = question.multi ? "Закрыть" : "Закрыть тест";
+  document.getElementById("btn-back-label").textContent = atFirst ? closeLabel : "Назад";
+  document.querySelector("#btn-dunno span").textContent = question.multi ? "Не знаю" : "Ещё не знаю";
 
   syncActionButtons(question, selected);
 }
@@ -528,7 +530,7 @@ async function chooseSingleOption(questionId, optionId, buttonEl) {
 
   document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = true; });
   const indicator = document.getElementById("save-indicator");
-  indicator.textContent = "Сохраняем…";
+  indicator.textContent = "";
 
   quiz.answers[questionId] = [optionId];
   buttonEl.classList.add("chosen");
@@ -574,7 +576,7 @@ document.getElementById("btn-dunno").addEventListener("click", async () => {
   quiz.answers[question.id] = ["dunno"];
   document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = true; el.classList.remove("chosen"); });
   const indicator = document.getElementById("save-indicator");
-  indicator.textContent = "Сохраняем…";
+  indicator.textContent = "";
 
   try {
     await submitAnswer(question.id, ["dunno"]);
@@ -600,7 +602,7 @@ document.getElementById("btn-next").addEventListener("click", async () => {
   document.getElementById("btn-next").disabled = true;
   document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = true; });
   const indicator = document.getElementById("save-indicator");
-  indicator.textContent = "Сохраняем…";
+  indicator.textContent = "";
 
   try {
     await submitAnswer(question.id, selected);
