@@ -942,6 +942,12 @@ document.getElementById("btn-restart").addEventListener("click", exitToStart);
 // ИСТОРИЯ
 // ═══════════════════════════════════════════
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
+  ));
+}
+
 const TEST_LABELS = {
   "designer-profile": "Какой вы тип дизайнера",
   "project-narrative": "Нарратив для проекта",
@@ -968,10 +974,11 @@ async function showHistory() {
         item.className = "history-item";
         const date = r.completed_at ? new Date(r.completed_at).toLocaleDateString("ru-RU") : "";
         const name = r.primary_narrative_name || r.primary_narrative_key;
-        const label = r.code_name ? `${r.code_name} — ${name}` : name;
+        // code_name человек вводит сам — в innerHTML он бы исполнился как разметка.
+        const label = r.code_name ? `${escapeHtml(r.code_name)} — ${escapeHtml(name)}` : escapeHtml(name);
         item.innerHTML = `
-          <div class="h-top"><span>${TEST_LABELS[r.test_key] || r.test_key}</span><span>${date}</span></div>
-          <strong>${label} · ${r.primary_score}%</strong>
+          <div class="h-top"><span>${escapeHtml(TEST_LABELS[r.test_key] || r.test_key)}</span><span>${escapeHtml(date)}</span></div>
+          <strong>${label} · ${Number(r.primary_score) || 0}%</strong>
         `;
         item.addEventListener("click", () => openHistoryResult(r.session_id));
         list.appendChild(item);

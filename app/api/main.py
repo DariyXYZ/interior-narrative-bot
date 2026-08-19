@@ -227,7 +227,13 @@ async def complete_session(session_id: str, user: Annotated[dict, Depends(curren
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     answers = await repository.list_session_answers(session_id)
     result = quiz_engine.compose_result(session["test_key"], content, answers, session_id)
-    await repository.complete_session(session_id, result)
+    written = await repository.complete_session(session_id, result)
+    if written is None:
+        # Параллельный запрос успел раньше — отдаём то, что он записал.
+        existing = await repository.get_result(session_id, user["id"])
+        if existing is None:
+            raise HTTPException(status_code=409, detail="Сессия уже завершена без результата")
+        return existing
     await repository.log_event(
         "session_completed", user["id"], session_id,
         {"test_key": session["test_key"], "primary_narrative_key": result["primary_narrative_key"]},

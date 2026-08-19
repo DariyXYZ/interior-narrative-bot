@@ -290,3 +290,32 @@ def test_single_select_question_rejects_multiple_option_ids(client, auth_headers
         json={"option_ids": ids},
     )
     assert resp.status_code == 422
+
+
+def test_completing_twice_returns_the_same_result(client, auth_headers):
+    """Двойной тап по последнему ответу или повтор запроса после таймаута.
+
+    Раньше второй запрос доходил до INSERT и падал пятисоткой на UNIQUE по
+    session_id; теперь статус меняется атомарно, а проигравший отдаёт уже
+    записанный результат.
+    """
+    content = client.get("/api/v1/tests/designer-profile", headers=auth_headers).json()
+    session_id = client.post(
+        "/api/v1/sessions", headers=auth_headers, json={"test_key": "designer-profile"}
+    ).json()["id"]
+    for question in content["questions"][:5]:
+        client.put(
+            f"/api/v1/sessions/{session_id}/answers/{question['id']}",
+            headers=auth_headers,
+            json={"option_ids": [question["options"][0]["id"]]},
+        )
+
+    first = client.post(f"/api/v1/sessions/{session_id}/complete", headers=auth_headers)
+    second = client.post(f"/api/v1/sessions/{session_id}/complete", headers=auth_headers)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["primary_narrative_key"] == second.json()["primary_narrative_key"]
+
+    history = client.get("/api/v1/results", headers=auth_headers).json()
+    assert len([row for row in history if row["session_id"] == session_id]) == 1

@@ -184,15 +184,26 @@ async def upsert_answer(session_id: str, question_id: str, option_ids: list[str]
         await db.commit()
 
 
-async def complete_session(session_id: str, result: dict) -> dict:
+async def complete_session(session_id: str, result: dict) -> dict | None:
+    """Завершает сессию. None — если её уже завершил кто-то другой.
+
+    Два «завершить» подряд — обычное дело: двойной тап по последнему ответу или
+    повтор запроса после таймаута. Гонку снимает сам UPDATE: он меняет статус
+    только с 'in_progress', и проигравший запрос не пишет второй результат
+    (иначе UNIQUE по session_id роняет запрос пятисоткой).
+    """
     now = utc_now()
     result_id = str(uuid4())
     async with _connect() as db:
         await _configure(db)
-        await db.execute(
-            "UPDATE test_sessions SET status = 'completed', completed_at = ?, updated_at = ? WHERE id = ?",
+        cursor = await db.execute(
+            "UPDATE test_sessions SET status = 'completed', completed_at = ?, updated_at = ? "
+            "WHERE id = ? AND status = 'in_progress'",
             (now, now, session_id),
         )
+        if cursor.rowcount == 0:
+            await db.commit()
+            return None
         await db.execute(
             """
             INSERT INTO test_results (
