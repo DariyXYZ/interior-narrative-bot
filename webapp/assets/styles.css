@@ -36,6 +36,11 @@ body {
 
 button { font: inherit; }
 
+/* Атрибут hidden обязан выигрывать у любого авторского display. Без этого
+   `display: inline-flex` у .btn-with-icon перебивал его, и кнопка пропуска
+   висела на экране даже там, где такого варианта ответа нет вообще. */
+[hidden] { display: none !important; }
+
 /* ── Иконки (google/material-design-icons) ── */
 
 .icon-sprite { display: none; }
@@ -137,7 +142,6 @@ button { font: inherit; }
   border-radius: 50%;
 }
 .history-button[data-mode="close"] .history-button-label { display: none; }
-.history-button[hidden] { display: none; }
 
 .history-button:focus-visible,
 .test-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 36%, transparent); outline-offset: 2px; }
