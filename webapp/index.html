@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Нарративы интерьера</title>
-  <link rel="stylesheet" href="./assets/styles.css?v=5">
+  <link rel="stylesheet" href="./assets/styles.css?v=6">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./config.js"></script>
 </head>
@@ -127,6 +127,12 @@
           <span id="btn-back-label">Назад</span>
         </button>
         <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
+        <!-- «Не знаю» вынесен из списка вариантов сюда: в списке он занимал
+             место наравне с содержательными ответами и оттягивал внимание. -->
+        <button type="button" class="btn-ghost btn-with-icon btn-dunno" id="btn-dunno" hidden>
+          <span>Ещё не знаю</span>
+          <svg class="ic" aria-hidden="true"><use href="#ic-arrow-forward"></use></svg>
+        </button>
         <button type="button" class="btn-primary" id="btn-next" hidden>Далее</button>
       </div>
     </section>
@@ -138,6 +144,7 @@
         <h2 id="result-name"></h2>
         <p class="result-subtitle" id="result-subtitle"></p>
         <div class="result-image" id="result-image-wrap" hidden><img id="result-image" src="" alt=""></div>
+        <p class="fit-label" id="fit-label">Совпадение с архетипом</p>
         <div class="fit-row">
           <div class="fit-bar-track"><div class="fit-bar-fill" id="fit-bar"></div></div>
           <span id="fit-percent"></span>
@@ -172,6 +179,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/app.js?v=5"></script>
+  <script type="module" src="./assets/app.js?v=6"></script>
 </body>
 </html>

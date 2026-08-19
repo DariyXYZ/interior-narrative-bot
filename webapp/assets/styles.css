@@ -245,6 +245,8 @@ button { font: inherit; }
   padding-top: 8px;
 }
 
+.quiz-actions { padding-top: 20px; gap: 10px; }
+
 .btn-primary,
 .btn-ghost {
   font: inherit;
@@ -280,7 +282,7 @@ button { font: inherit; }
 .progress-row #q-counter { color: var(--text-secondary); }
 
 .progress-track {
-  margin-top: 10px;
+  margin: 10px 0 24px;
   height: 4px;
   border-radius: 2px;
   background: var(--border);
@@ -298,7 +300,7 @@ button { font: inherit; }
 }
 
 .q-text {
-  margin: 0 0 8px;
+  margin: 0 0 18px;
   font-size: clamp(18px, 4.5vw, 20px);
   line-height: 1.45;
   font-weight: 650;
@@ -306,7 +308,7 @@ button { font: inherit; }
   color: var(--text-primary);
 }
 
-.q-hint { margin: 0 0 18px; font-size: 13px; color: var(--text-muted); }
+.q-hint { margin: -8px 0 18px; font-size: 13px; color: var(--text-muted); }
 
 .options { display: grid; gap: 12px; }
 
@@ -332,7 +334,18 @@ button { font: inherit; }
 .option-btn.chosen { border-color: var(--accent); background: var(--accent-light); }
 .option-btn.dunno { color: var(--text-muted); font-style: italic; border-style: dashed; }
 
-.save-indicator { font-size: 12px; color: var(--text-muted); min-height: 16px; }
+.save-indicator { flex: 1; font-size: 12px; color: var(--text-muted); min-height: 16px; text-align: center; }
+
+/* «Ещё не знаю» — приглушённая кнопка того же роста, что «Назад»: это выход
+   из вопроса, а не ответ, и притягивать взгляд ей незачем. */
+.btn-dunno { color: var(--text-secondary); }
+.btn-dunno:hover { border-color: var(--text-muted); background: transparent; color: var(--text-primary); }
+.btn-dunno .ic { color: var(--text-muted); }
+
+/* Иконка съедает воздух со своей стороны — паддинги подрезаны, чтобы пара
+   «стрелка + текст» стояла оптически по центру кнопки. */
+#btn-back { padding-left: 15px; padding-right: 20px; }
+#btn-dunno { padding-left: 20px; padding-right: 15px; }
 
 /* ── Результат: карточка ведущего нарратива ── */
 
@@ -373,7 +386,8 @@ button { font: inherit; }
 .fit-bar-fill { height: 100%; border-radius: inherit; background: var(--arch-color, var(--accent)); transition: width .5s ease; }
 .fit-row span { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-secondary); min-width: 38px; text-align: right; }
 
-.confidence-line { margin: 12px 0 0; font-size: 12px; color: var(--text-muted); }
+.fit-label { margin: 18px 0 7px; font-size: 12px; color: var(--text-muted); }
+.confidence-line { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
 
 .result-text { margin: 20px 0; font-size: 15px; line-height: 1.7; color: var(--text-secondary); }
 

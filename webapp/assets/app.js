@@ -437,10 +437,11 @@ function renderQuestion() {
 
   const list = document.getElementById("options-list");
   list.innerHTML = "";
-  question.options.forEach((option) => {
+  question.options.filter((option) => option.id !== "dunno").forEach((option) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "option-btn" + (option.id === "dunno" ? " dunno" : "");
+    btn.className = "option-btn";
+    btn.dataset.optionId = option.id;
     btn.textContent = option.text;
     if (selected.has(option.id)) {
       btn.classList.add("chosen");
@@ -463,9 +464,19 @@ function renderQuestion() {
   backBtn.querySelector("use").setAttribute("href", atFirst ? "#ic-close" : "#ic-arrow-back");
   document.getElementById("btn-back-label").textContent = atFirst ? "Закрыть тест" : "Назад";
 
+  syncActionButtons(question, selected);
+}
+
+// «Ещё не знаю» и «Далее» занимают одно место справа и никогда не нужны
+// одновременно: пока ничего не выбрано, уместен пропуск, как только выбрали —
+// переход дальше. Так обе кнопки помещаются даже на узком экране.
+function syncActionButtons(question, selected) {
+  const hasDunno = question.options.some((option) => option.id === "dunno");
+  const chosenSomething = selected.size > 0 && !selected.has("dunno");
+  document.getElementById("btn-dunno").hidden = !hasDunno || chosenSomething;
   const nextBtn = document.getElementById("btn-next");
-  nextBtn.hidden = !question.multi;
-  nextBtn.disabled = question.multi && selected.size === 0;
+  nextBtn.hidden = !question.multi || !chosenSomething;
+  nextBtn.disabled = false;
 }
 
 // В строке автосохранения места мало: даём короткую причину, подробности с
@@ -501,14 +512,13 @@ function toggleMultiOption(question, optionId, buttonEl) {
 
   quiz.answers[question.id] = [...current];
   syncMultiButtonStates(question, current);
-  document.getElementById("btn-next").disabled = current.size === 0;
+  syncActionButtons(question, current);
 }
 
 function syncMultiButtonStates(question, selectedSet) {
   const list = document.getElementById("options-list");
-  [...list.children].forEach((btn, idx) => {
-    const optionId = question.options[idx].id;
-    btn.classList.toggle("chosen", selectedSet.has(optionId));
+  [...list.children].forEach((btn) => {
+    btn.classList.toggle("chosen", selectedSet.has(btn.dataset.optionId));
   });
 }
 
@@ -554,6 +564,31 @@ async function advanceOrFinish() {
     renderQuestion();
   }
 }
+
+// «Ещё не знаю» отвечает и сразу листает дальше — и в одиночном вопросе,
+// и в множественном, где такой ответ по смыслу исключает все остальные.
+document.getElementById("btn-dunno").addEventListener("click", async () => {
+  if (savingAnswer || !quiz) return;
+  const question = quiz.content.questions[quiz.index];
+  savingAnswer = true;
+  quiz.answers[question.id] = ["dunno"];
+  document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = true; el.classList.remove("chosen"); });
+  const indicator = document.getElementById("save-indicator");
+  indicator.textContent = "Сохраняем…";
+
+  try {
+    await submitAnswer(question.id, ["dunno"]);
+    indicator.textContent = "";
+  } catch (error) {
+    indicator.textContent = saveFailureText(error);
+    document.querySelectorAll(".option-btn").forEach((el) => { el.disabled = false; });
+    savingAnswer = false;
+    return;
+  }
+
+  savingAnswer = false;
+  await advanceOrFinish();
+});
 
 document.getElementById("btn-next").addEventListener("click", async () => {
   if (savingAnswer || !quiz) return;
@@ -628,6 +663,17 @@ async function finishQuiz() {
 // ЭКРАН РЕЗУЛЬТАТА
 // ═══════════════════════════════════════════
 
+// Два процента на одном экране путают: первый — насколько ответы совпали с
+// этим архетипом, второй — на сколько вопросов вообще ответили. Второй теперь
+// объясняется словами, а не голой цифрой «уверенность 100%».
+function confidenceLine(confidence) {
+  if (confidence >= 100) return "Считали по всем вашим ответам.";
+  if (confidence >= 70) {
+    return `Содержательных ответов — ${confidence}%, остальные вы отметили «Ещё не знаю». Данных хватает.`;
+  }
+  return `Содержательных ответов — всего ${confidence}%, поэтому результат ориентировочный. Пройдите тест ещё раз, когда по проекту будет больше ясности.`;
+}
+
 async function loadFullResult(sessionId) {
   return api(`/api/v1/sessions/${sessionId}/result`);
 }
@@ -683,7 +729,10 @@ function renderResultDetail(result) {
   document.getElementById("fit-bar").style.width = `${result.primary_score}%`;
   document.getElementById("fit-bar").style.background = primary.color || "#2563EB";
   document.getElementById("fit-percent").textContent = `${result.primary_score}%`;
-  document.getElementById("confidence-line").textContent = `Уверенность результата: ${result.confidence}%`;
+  document.getElementById("fit-label").textContent = isDesignerProfile
+    ? "Совпадение с архетипом"
+    : "Совпадение с нарративом";
+  document.getElementById("confidence-line").textContent = confidenceLine(result.confidence);
   setNoWidowText(document.getElementById("result-text"), result.result_text);
 
   const detail = document.getElementById("result-detail");
