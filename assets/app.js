@@ -28,7 +28,36 @@ function refreshInitData() {
 // токен; дальше все запросы идут с этим токеном и не зависят от того, что в
 // этот раз отдал Telegram-клиент.
 const SESSION_TOKEN_KEY = "interior-narrative:session-token";
+const SESSION_TOKEN_HEADER = "X-Session-Token";
 let sessionToken = localStorage.getItem(SESSION_TOKEN_KEY) || null;
+
+function storeSessionToken(token) {
+  if (!token) return;
+  sessionToken = token;
+  try {
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+  } catch {
+    // Приватный режим вебвью может запрещать запись — вход доживёт до закрытия.
+  }
+}
+
+// Вход, вшитый в кнопку бота. Единственный путь, который не зависит от initData:
+// бот знает, кто нажал кнопку, и подписывает токен сам. Из адреса параметр сразу
+// убираем — незачем оставлять его в истории вебвью и в заголовке шаринга.
+(function adoptTokenFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const fromButton = params.get("t");
+  if (!fromButton) return;
+  storeSessionToken(fromButton);
+  params.delete("t");
+  const query = params.toString();
+  const cleanUrl = window.location.pathname + (query ? `?${query}` : "") + window.location.hash;
+  try {
+    window.history.replaceState(null, "", cleanUrl);
+  } catch {
+    // Не вышло — не страшно, токен уже сохранён.
+  }
+})();
 
 async function exchangeForSessionToken() {
   if (!initData || !apiBaseUrl) return null;
@@ -39,8 +68,7 @@ async function exchangeForSessionToken() {
     });
     if (!response.ok) return null;
     const data = await response.json();
-    sessionToken = data.session_token;
-    localStorage.setItem(SESSION_TOKEN_KEY, sessionToken);
+    storeSessionToken(data.session_token);
     return data;
   } catch {
     return null;
@@ -168,6 +196,13 @@ async function api(path, options = {}, _retried = false) {
     throw new ApiError("network");
   } finally {
     clearTimeout(timer);
+  }
+
+  // Сервер продлевает токен заранее, не дожидаясь, пока он умрёт: иначе через
+  // тридцать дней вход отваливался бы у всех, кому Telegram не отдаёт initData.
+  const refreshed = response.headers.get(SESSION_TOKEN_HEADER);
+  if (refreshed) {
+    storeSessionToken(refreshed);
   }
 
   if (response.status === 401 && !_retried) {
@@ -299,8 +334,8 @@ const hasIdentity = () => Boolean(initData || sessionToken);
 
 const NOT_IN_TELEGRAM =
   "Приложение открыто вне Telegram — профиль не передан, поэтому тест не начать. "
-  + "Откройте его кнопкой «Открыть приложение» в чате с ботом. "
-  + "Если вы так и сделали, отправьте боту /start: Telegram иногда держит старую кнопку.";
+  + "Отправьте боту /start и откройте приложение свежей кнопкой «Открыть приложение»: "
+  + "она несёт вход в себе и работает даже когда Telegram не передаёт профиль.";
 
 async function startTest(testKey) {
   if (!hasIdentity()) {
