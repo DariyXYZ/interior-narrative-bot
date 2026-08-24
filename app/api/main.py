@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import aiosqlite
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,8 +15,8 @@ from app.api.telegram_auth import (
     TelegramAuthError,
     TelegramIdentity,
     issue_session_token,
+    read_session_token,
     validate_init_data,
-    verify_session_token,
 )
 from app.core.config import BASE_DIR, get_settings
 from app.domain import quiz_engine
@@ -24,6 +24,11 @@ from app.storage import repository
 
 WEBAPP_DIR = BASE_DIR / "webapp"
 SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 дней — токен переживает баги Telegram-клиента с initData
+# Токен продлевается молча, пока человек пользуется приложением: жёсткий конец
+# тридцати дней однажды запирал вход насмерть — новый токен взять негде, когда
+# Telegram-клиент отдаёт пустой initData.
+SESSION_TOKEN_REFRESH_BEFORE_SECONDS = 7 * 24 * 60 * 60
+SESSION_TOKEN_HEADER = "X-Session-Token"
 
 
 @asynccontextmanager
@@ -47,6 +52,8 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Telegram-Init-Data", "ngrok-skip-browser-warning"],
+    # Без expose_headers браузер спрячет продлённый токен от скрипта.
+    expose_headers=[SESSION_TOKEN_HEADER],
 )
 app.mount("/assets", StaticFiles(directory=WEBAPP_DIR / "assets"), name="assets")
 
@@ -85,6 +92,7 @@ async def telegram_identity(
 
 
 async def current_user(
+    response: Response,
     authorization: Annotated[str | None, Header()] = None,
     x_telegram_init_data: Annotated[str | None, Header()] = None,
 ) -> dict:
@@ -94,9 +102,15 @@ async def current_user(
     settings = get_settings()
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization[len("bearer "):].strip()
-        telegram_user_id = verify_session_token(token, settings.require_bot_token())
-        if telegram_user_id is None:
+        bot_token = settings.require_bot_token()
+        parsed = read_session_token(token, bot_token)
+        if parsed is None:
             raise HTTPException(status_code=401, detail="Сессионный токен недействителен или истёк")
+        telegram_user_id, seconds_left = parsed
+        if seconds_left < SESSION_TOKEN_REFRESH_BEFORE_SECONDS:
+            response.headers[SESSION_TOKEN_HEADER] = issue_session_token(
+                telegram_user_id, bot_token, SESSION_TOKEN_TTL_SECONDS
+            )
         user = await repository.get_user_by_telegram_id(telegram_user_id)
         if user is None:
             raise HTTPException(status_code=401, detail="Пользователь не найден")

@@ -87,3 +87,16 @@ def verify_session_token(token: str, bot_token: str, now: float | None = None) -
         return None
     return telegram_user_id
 
+
+def read_session_token(token: str, bot_token: str, now: float | None = None) -> tuple[int, int] | None:
+    """Разбирает живой токен в (telegram_user_id, сколько секунд ему осталось).
+    None — подпись не сходится или срок вышел.
+
+    Остаток срока нужен для молчаливого продления: человек, который пользуется
+    приложением регулярно, не должен однажды упереться в жёсткий конец тридцати
+    дней — нового токена взять негде, когда клиент отдаёт пустой initData."""
+    telegram_user_id = verify_session_token(token, bot_token, now)
+    if telegram_user_id is None:
+        return None
+    expires_at = int(token.split(".")[1])
+    return telegram_user_id, expires_at - int(now if now is not None else time.time())

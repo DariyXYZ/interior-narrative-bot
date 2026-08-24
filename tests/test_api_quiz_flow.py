@@ -319,3 +319,49 @@ def test_completing_twice_returns_the_same_result(client, auth_headers):
 
     history = client.get("/api/v1/results", headers=auth_headers).json()
     assert len([row for row in history if row["session_id"] == session_id]) == 1
+
+
+def test_bearer_token_from_bot_button_authenticates(client, auth_headers):
+    """Токен, выданный ботом кнопке, должен пускать без всякого initData."""
+    from app.api.telegram_auth import issue_session_token
+
+    client.get("/api/v1/me", headers=auth_headers)  # юзер появился в БД
+    token = issue_session_token(42, "test-token-for-pytest", 180 * 24 * 60 * 60)
+    response = client.get("/api/v1/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert response.json()["telegram_user_id"] == 42
+
+
+def test_session_token_renews_silently_before_expiry(client, auth_headers):
+    """Токен на исходе продлевается заголовком — иначе вход однажды умирает,
+    и взять новый негде: initData Telegram отдаёт не всегда."""
+    from app.api import main as api_main
+    from app.api.telegram_auth import issue_session_token, read_session_token
+
+    client.get("/api/v1/me", headers=auth_headers)
+    dying = issue_session_token(42, "test-token-for-pytest", 3 * 24 * 60 * 60)
+    response = client.get("/api/v1/me", headers={"Authorization": f"Bearer {dying}"})
+    assert response.status_code == 200
+    renewed = response.headers.get(api_main.SESSION_TOKEN_HEADER)
+    assert renewed and renewed != dying
+    user_id, seconds_left = read_session_token(renewed, "test-token-for-pytest")
+    assert user_id == 42
+    assert seconds_left > api_main.SESSION_TOKEN_REFRESH_BEFORE_SECONDS
+
+
+def test_fresh_session_token_is_not_renewed(client, auth_headers):
+    from app.api import main as api_main
+
+    exchanged = client.post("/api/v1/auth/exchange", headers=auth_headers).json()
+    response = client.get("/api/v1/me", headers={"Authorization": f"Bearer {exchanged['session_token']}"})
+    assert response.status_code == 200
+    assert api_main.SESSION_TOKEN_HEADER not in response.headers
+
+
+def test_expired_session_token_is_rejected(client, auth_headers):
+    import time
+    from app.api.telegram_auth import issue_session_token
+
+    client.get("/api/v1/me", headers=auth_headers)
+    dead = issue_session_token(42, "test-token-for-pytest", -10, now=time.time())
+    assert client.get("/api/v1/me", headers={"Authorization": f"Bearer {dead}"}).status_code == 401

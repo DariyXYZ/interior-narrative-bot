@@ -73,3 +73,19 @@ def test_session_token_rejects_garbage() -> None:
     assert verify_session_token("not-a-token", "token") is None
     assert verify_session_token("", "token") is None
 
+
+
+def test_read_session_token_returns_user_and_remaining_life() -> None:
+    from app.api.telegram_auth import issue_session_token, read_session_token
+
+    token = issue_session_token(77, "bot-token", 3600, now=1_000_000)
+    parsed = read_session_token(token, "bot-token", now=1_000_000)
+    assert parsed == (77, 3600)
+
+
+def test_read_session_token_rejects_expired_and_forged() -> None:
+    from app.api.telegram_auth import issue_session_token, read_session_token
+
+    token = issue_session_token(77, "bot-token", 3600, now=1_000_000)
+    assert read_session_token(token, "bot-token", now=1_004_000) is None
+    assert read_session_token(token, "other-token", now=1_000_000) is None
