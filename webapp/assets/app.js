@@ -939,9 +939,7 @@ function renderSummary(ranking, isDesignerProfile) {
 // ── Полный список: все нарративы, раскрывающиеся карточки ──
 function renderRankedList(ranking, isDesignerProfile) {
   const title = document.getElementById("ranked-title");
-  title.textContent = isDesignerProfile
-    ? "Все архетипы — от ближайшего к дальнему"
-    : "Все нарративы — от ближайшего к дальнему";
+  title.textContent = isDesignerProfile ? "Все архетипы" : "Все нарративы";
 
   const list = document.getElementById("ranked-list");
   list.innerHTML = "";
