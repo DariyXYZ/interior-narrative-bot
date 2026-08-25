@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Нарративы интерьера</title>
-  <link rel="stylesheet" href="./assets/styles.css?v=14">
+  <link rel="stylesheet" href="./assets/styles.css?v=17">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./config.js"></script>
 </head>
@@ -21,6 +21,9 @@
     <symbol id="ic-arrow-back" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
     <symbol id="ic-history" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></symbol>
     <symbol id="ic-expand-more" viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></symbol>
+    <!-- Вордмарк студии. Один путь, fill наследуется от currentColor,
+         чтобы цвет задавался стилями, а не был вшит в графику. -->
+    <symbol id="ind-wordmark" viewBox="0 0 164 68"><path d="M104.501 0V68H130.856C137.032 68 142.384 67.5802 146.09 66.321C158.442 62.1235 164 51.8395 164 33.1605C164 15.7407 158.442 5.66667 146.296 1.67901C142.384 0.419753 136.826 0 130.856 0H104.501ZM150.207 33.3704C150.207 47.0123 146.708 53.5185 140.532 56.037C137.444 57.2963 133.738 57.5062 129.827 57.5062H117.265V10.4938H129.827C133.738 10.4938 137.444 10.7037 140.532 11.963C146.708 14.4815 150.207 20.5679 150.207 33.3704ZM65.6015 68L40.3491 5.03704V68H27.7914V0H52.0832L77.3357 62.7531V0H89.8933V68H65.6015ZM13.1752 68H0V0H13.1752V68Z"/></symbol>
   </svg>
 
   <main class="shell">
@@ -31,6 +34,7 @@
              от политик автоплея в Telegram WebView. -->
         <button class="brand-home" id="brand-home" type="button" aria-label="На главный экран" title="На главный экран">
           <img class="brand-logo" src="./assets/logo-orb.webp?v=5" width="40" height="40" alt="" aria-hidden="true">
+          <svg class="brand-wordmark" viewBox="0 0 164 68" aria-hidden="true"><use href="#ind-wordmark"></use></svg>
         </button>
         <div>
           <p class="product-name">IND · Интерьер</p>
@@ -181,6 +185,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/app.js?v=14"></script>
+  <script type="module" src="./assets/app.js?v=17"></script>
 </body>
 </html>
