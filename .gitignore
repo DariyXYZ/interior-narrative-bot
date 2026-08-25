@@ -9,3 +9,4 @@ logs/*.log
 *.log
 *.old.log
 vercel-env.txt
+preview_orb.png
