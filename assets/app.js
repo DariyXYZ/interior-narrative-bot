@@ -308,7 +308,7 @@ const topbarLabel = document.getElementById("history-button-label")
 const topbarIcon = topbarButton.querySelector("use");
 
 const TOPBAR_MODES = {
-  history: { icon: "#ic-history", label: "История", title: "История прохождений" },
+  history: { icon: "#ic-history", label: "Результаты", title: "Результаты тестов" },
   close: { icon: "#ic-close", label: "Закрыть", title: "Закрыть" },
 };
 

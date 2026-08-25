@@ -57,12 +57,22 @@ button { font: inherit; }
   width: min(100%, 720px);
   margin: 0 auto;
   padding: max(20px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom));
+  /* Колонка во весь экран — ради подписи внизу: без этого она вставала сразу
+     под содержимым и на коротких экранах оказывалась посреди пустоты, а от
+     экрана к экрану прыгала по высоте. dvh, а не vh: в мобильных браузерах
+     панели то появляются, то исчезают, и vh считает по большему размеру. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .credits {
-  margin-top: 40px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+  /* Прижимает подпись к низу: всё свободное место колонки уходит в этот отступ.
+     Линии-разделителя нет намеренно — при длинном экране она вставала бы
+     впритык к последней карточке. */
+  margin-top: auto;
+  padding-top: 32px;
   color: var(--text-muted);
   font-size: 12px;
   text-align: center;
