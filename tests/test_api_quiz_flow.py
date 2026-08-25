@@ -21,22 +21,28 @@ def _signed_init_data(token: str, user_id: int = 42, username: str = "designer")
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("DB_FILE", str(tmp_path / "test.sqlite3"))
+def client(clean_tables, monkeypatch):
+    from tests.conftest import TEST_SCHEMA
+
+    monkeypatch.setenv("DB_SCHEMA", TEST_SCHEMA)
     monkeypatch.setenv("TELEGRAM_TOKEN", "test-token-for-pytest")
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://dariyxyz.github.io")
 
     from app.core.config import get_settings
     get_settings.cache_clear()
 
-    # content loader кэширует по test_key через lru_cache - для изоляции тестов
-    # не нужен, содержимое не зависит от .env/БД.
     from fastapi.testclient import TestClient
     from app.api import main as api_main
+    from app.storage import repository
+
+    # Пул asyncpg привязан к циклу событий, а TestClient заводит свой на каждый
+    # тест — старый пул во втором тесте отвечал бы «another loop is running».
+    repository._pool = None
 
     with TestClient(api_main.app) as test_client:
         yield test_client
 
+    repository._pool = None
     get_settings.cache_clear()
 
 

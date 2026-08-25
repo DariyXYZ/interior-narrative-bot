@@ -31,6 +31,9 @@ def _origin_tuple(raw: str) -> tuple[str, ...]:
 class Settings:
     telegram_token: str
     webapp_url: str
+    database_url: str
+    db_schema: str
+    webhook_secret: str
     db_path: Path
     admin_telegram_ids: frozenset[int]
     init_data_max_age_seconds: int
@@ -40,6 +43,11 @@ class Settings:
         if not self.telegram_token:
             raise RuntimeError("TELEGRAM_TOKEN не задан в .env")
         return self.telegram_token
+
+    def require_database_url(self) -> str:
+        if not self.database_url:
+            raise RuntimeError("DATABASE_URL не задан — нужна строка подключения к Postgres")
+        return self.database_url
 
     def require_webapp_url(self) -> str:
         if not self.webapp_url.startswith("https://"):
@@ -57,6 +65,14 @@ def get_settings() -> Settings:
     return Settings(
         telegram_token=os.environ.get("TELEGRAM_TOKEN", "").strip(),
         webapp_url=os.environ.get("WEBAPP_URL", "").strip().rstrip("/"),
+        database_url=os.environ.get("DATABASE_URL", "").strip(),
+        # Пароль вебхука: Telegram присылает его заголовком, и без совпадения
+        # апдейт не принимается — адрес функции публичный, подделать запрос
+        # иначе не стоило бы ничего.
+        webhook_secret=os.environ.get("WEBHOOK_SECRET", "").strip(),
+        # Схема, а не отдельная база: в одном проекте Supabase живут два продукта,
+        # и тесты гоняются в своей схеме, не задевая рабочие данные.
+        db_schema=os.environ.get("DB_SCHEMA", "interior").strip(),
         db_path=db_path,
         admin_telegram_ids=_int_set(os.environ.get("ADMIN_TELEGRAM_IDS", "")),
         init_data_max_age_seconds=int(os.environ.get("INIT_DATA_MAX_AGE_SECONDS", "86400")),

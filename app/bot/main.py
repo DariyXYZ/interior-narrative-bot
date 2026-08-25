@@ -68,12 +68,21 @@ HELP = (
 )
 
 
-async def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+def create_bot() -> Bot:
+    settings = get_settings()
+    return Bot(token=settings.require_bot_token(), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+
+def create_dispatcher() -> Dispatcher:
+    """Все хендлеры бота одним куском — без предположения, как приходят апдейты.
+
+    Дома бот живёт на long polling, на Vercel его будит вебхук. Логика при этом
+    обязана быть одна: разъехавшиеся копии хендлеров означают, что «у меня
+    работает» перестаёт что-либо значить.
+    """
     settings = get_settings()
     token = settings.require_bot_token()
     webapp_url = settings.require_webapp_url()
-    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
     # file_id первой отправки: Telegram хранит картинку у себя, дальше шлём
@@ -142,12 +151,25 @@ async def main() -> None:
             "Для проектов используются только внутренние коды или условные названия — без реальных названий заказчиков."
         )
 
-    await repository.init_db()
+    return dp
+
+
+async def announce_commands(bot: Bot) -> None:
+    """Команды и вид боковой кнопки. Настройки бота, а не запуска."""
     await bot.set_my_commands(COMMANDS)
     # Боковая кнопка — список команд, а не Web App: иначе команды доступны только
     # набором «/» вручную. Приложение открывается крупной кнопкой reply-клавиатуры
     # (app_keyboard), так что вход в него никуда не девается.
     await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+
+async def main() -> None:
+    """Локальный запуск на long polling."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    bot = create_bot()
+    dp = create_dispatcher()
+    await repository.init_db()
+    await announce_commands(bot)
     logging.info("Interior Narrative Bot started")
     await dp.start_polling(bot)
 

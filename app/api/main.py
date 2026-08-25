@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
 
-import aiosqlite
+import asyncpg
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -29,6 +29,12 @@ SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 дней — токен пе
 # Telegram-клиент отдаёт пустой initData.
 SESSION_TOKEN_REFRESH_BEFORE_SECONDS = 7 * 24 * 60 * 60
 SESSION_TOKEN_HEADER = "X-Session-Token"
+
+
+# Бот и диспетчер переживают запросы в пределах инстанса: собирать их заново на
+# каждый апдейт — лишняя работа на каждом сообщении.
+_bot = None
+_dispatcher = None
 
 
 @asynccontextmanager
@@ -135,6 +141,37 @@ async def auth_exchange(identity: Annotated[TelegramIdentity, Depends(telegram_i
     }
 
 
+@app.post("/api/v1/telegram/webhook", include_in_schema=False)
+async def telegram_webhook(
+    update: dict,
+    x_telegram_bot_api_secret_token: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Апдейты Telegram, когда бот живёт функцией, а не процессом.
+
+    Long polling требует вечно живого процесса на чьей-то машине — ровно то, от
+    чего мы уезжаем. Вебхук будит функцию только когда кто-то написал боту.
+
+    Заголовок с секретом обязателен: адрес функции публичный, и без проверки
+    любой прислал бы боту поддельный апдейт от чужого имени.
+    """
+    settings = get_settings()
+    secret = settings.webhook_secret
+    if not secret or x_telegram_bot_api_secret_token != secret:
+        raise HTTPException(status_code=403, detail="Чужой вебхук")
+
+    # Импорт внутри: aiogram нужен одному этому роуту, а тянуть его на каждом
+    # холодном старте ради запросов теста незачем.
+    from aiogram.types import Update
+
+    from app.bot.main import create_bot, create_dispatcher
+
+    global _bot, _dispatcher
+    if _bot is None or _dispatcher is None:
+        _bot, _dispatcher = create_bot(), create_dispatcher()
+    await _dispatcher.feed_webhook_update(_bot, Update.model_validate(update, context={"bot": _bot}))
+    return {"ok": True}
+
+
 @app.get("/api/v1/health")
 async def health() -> dict:
     return {"status": "ok", "version": app.version}
@@ -184,7 +221,7 @@ async def start_session(payload: SessionCreate, user: Annotated[dict, Depends(cu
         raise HTTPException(status_code=422, detail="Для теста project-narrative нужен project_id")
     try:
         session = await repository.create_session(user["id"], payload.test_key, payload.project_id)
-    except aiosqlite.IntegrityError as exc:
+    except asyncpg.exceptions.IntegrityConstraintViolationError as exc:
         raise HTTPException(status_code=422, detail="Неизвестный project_id") from exc
     await repository.log_event("session_started", user["id"], session["id"], {"test_key": payload.test_key})
     return session
