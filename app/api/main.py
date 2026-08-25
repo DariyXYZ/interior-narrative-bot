@@ -234,6 +234,30 @@ async def start_session(payload: SessionCreate, user: Annotated[dict, Depends(cu
     return session
 
 
+@app.get("/api/v1/sessions/active")
+async def active_sessions(user: Annotated[dict, Depends(current_user)]) -> list[dict]:
+    """Что человек начал и не закончил — чтобы предложить продолжить с того же места."""
+    rows = await repository.list_active_sessions(user["id"])
+    for row in rows:
+        content = quiz_engine.load_content(row["test_key"])
+        row["total"] = len(content["questions"])
+        row["title"] = content.get("title", row["test_key"])
+    return rows
+
+
+@app.post("/api/v1/sessions/{session_id}/abandon")
+async def abandon_session(session_id: str, user: Annotated[dict, Depends(current_user)]) -> dict:
+    """Отказ от черновика: человек выбрал «начать заново».
+
+    Прохождение не удаляется, а помечается брошенным — ответы остаются для
+    аналитики, но предлагать его снова уже незачем.
+    """
+    if not await repository.abandon_session(session_id, user["id"]):
+        raise HTTPException(status_code=404, detail="Сессия не найдена или уже закрыта")
+    await repository.log_event("session_abandoned", user["id"], session_id, {})
+    return {"status": "abandoned"}
+
+
 async def _owned_session(session_id: str, user: dict) -> dict:
     session = await repository.get_session(session_id, user["id"])
     if session is None:

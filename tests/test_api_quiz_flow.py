@@ -371,3 +371,84 @@ def test_expired_session_token_is_rejected(client, auth_headers):
     client.get("/api/v1/me", headers=auth_headers)
     dead = issue_session_token(42, "test-token-for-pytest", -10, now=time.time())
     assert client.get("/api/v1/me", headers={"Authorization": f"Bearer {dead}"}).status_code == 401
+
+
+def _start_answered_session(client, auth_headers, test_key="designer-profile", project_id=None, answers=3):
+    body = {"test_key": test_key}
+    if project_id:
+        body["project_id"] = project_id
+    session = client.post("/api/v1/sessions", json=body, headers=auth_headers).json()
+    content = client.get(f"/api/v1/tests/{test_key}", headers=auth_headers).json()
+    for question in content["questions"][:answers]:
+        client.put(
+            f"/api/v1/sessions/{session['id']}/answers/{question['id']}",
+            json={"option_ids": [question["options"][0]["id"]]},
+            headers=auth_headers,
+        )
+    return session, content
+
+
+def test_active_sessions_report_where_a_person_stopped(client, auth_headers):
+    """Черновик держится на сервере: без него брошенный тест не найти с другого
+    устройства и после чистки хранилища вебвью."""
+    assert client.get("/api/v1/sessions/active", headers=auth_headers).json() == []
+
+    project = client.post(
+        "/api/v1/projects", json={"code_name": "Альфабанк Офис"}, headers=auth_headers
+    ).json()
+    _start_answered_session(client, auth_headers, "project-narrative", project["id"], answers=4)
+
+    drafts = client.get("/api/v1/sessions/active", headers=auth_headers).json()
+    assert len(drafts) == 1
+    draft = drafts[0]
+    assert draft["test_key"] == "project-narrative"
+    assert draft["code_name"] == "Альфабанк Офис"
+    assert draft["answered"] == 4
+    assert draft["total"] == 35
+
+
+def test_only_the_freshest_draft_of_each_test_is_offered(client, auth_headers):
+    _start_answered_session(client, auth_headers, answers=2)
+    second, _ = _start_answered_session(client, auth_headers, answers=5)
+
+    drafts = client.get("/api/v1/sessions/active", headers=auth_headers).json()
+    # Иначе на карточке теста висел бы список забытых попыток.
+    assert [d["session_id"] for d in drafts] == [second["id"]]
+    assert drafts[0]["answered"] == 5
+
+
+def test_finished_test_is_no_longer_a_draft(client, auth_headers):
+    session, content = _start_answered_session(client, auth_headers, answers=len(
+        client.get("/api/v1/tests/designer-profile", headers=auth_headers).json()["questions"]))
+    client.post(f"/api/v1/sessions/{session['id']}/complete", headers=auth_headers)
+    assert client.get("/api/v1/sessions/active", headers=auth_headers).json() == []
+
+
+def test_abandon_removes_the_draft_and_cannot_repeat(client, auth_headers):
+    session, _ = _start_answered_session(client, auth_headers, answers=2)
+
+    assert client.post(f"/api/v1/sessions/{session['id']}/abandon", headers=auth_headers).status_code == 200
+    assert client.get("/api/v1/sessions/active", headers=auth_headers).json() == []
+    # Ответы остаются в базе — брошенное прохождение всё ещё материал для разбора.
+    assert client.get(f"/api/v1/sessions/{session['id']}", headers=auth_headers).json()["status"] == "abandoned"
+    assert client.post(f"/api/v1/sessions/{session['id']}/abandon", headers=auth_headers).status_code == 404
+
+
+def test_abandoned_session_refuses_further_answers(client, auth_headers):
+    session, content = _start_answered_session(client, auth_headers, answers=1)
+    client.post(f"/api/v1/sessions/{session['id']}/abandon", headers=auth_headers)
+    question = content["questions"][5]
+    response = client.put(
+        f"/api/v1/sessions/{session['id']}/answers/{question['id']}",
+        json={"option_ids": [question["options"][0]["id"]]},
+        headers=auth_headers,
+    )
+    assert response.status_code == 409
+
+
+def test_draft_of_another_person_is_invisible(client, auth_headers):
+    session, _ = _start_answered_session(client, auth_headers, answers=2)
+    stranger = {"X-Telegram-Init-Data": _signed_init_data("test-token-for-pytest", user_id=777, username="stranger")}
+
+    assert client.get("/api/v1/sessions/active", headers=stranger).json() == []
+    assert client.post(f"/api/v1/sessions/{session['id']}/abandon", headers=stranger).status_code == 404

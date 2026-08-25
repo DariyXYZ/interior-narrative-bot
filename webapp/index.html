@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Нарративы интерьера</title>
-  <link rel="stylesheet" href="./assets/styles.css?v=20">
+  <link rel="stylesheet" href="./assets/styles.css?v=22">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./config.js"></script>
 </head>
@@ -184,11 +184,25 @@
       <div class="history-list" id="history-list"></div>
     </section>
 
+    <!-- Черновик найден: спрашиваем, продолжить или начать заново. Диалог, а не
+         экран: выбор из двух исходов, после которого человек возвращается ровно
+         туда, откуда пришёл. -->
+    <div class="modal" id="resume-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+        <h2 id="resume-title">Тест не закончен</h2>
+        <p id="resume-text"></p>
+        <div class="modal-actions">
+          <button class="btn-primary" id="resume-continue" type="button">Продолжить</button>
+          <button class="btn-ghost" id="resume-restart" type="button">Начать заново</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Подпись авторства: в потоке под содержимым, не липнет к низу экрана —
          иначе на коротких экранах она вклинивалась бы в середину. -->
     <footer class="credits">Разработан: Полина Ишукова / @ded_indigo</footer>
   </main>
 
-  <script type="module" src="./assets/app.js?v=20"></script>
+  <script type="module" src="./assets/app.js?v=22"></script>
 </body>
 </html>

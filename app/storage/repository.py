@@ -192,6 +192,41 @@ async def upsert_answer(session_id: str, question_id: str, option_ids: list[str]
         )
 
 
+async def list_active_sessions(user_id: int) -> list[dict]:
+    """Незавершённые прохождения — по одному, самому свежему, на каждый тест.
+
+    Черновик живёт на сервере, а не в браузере: хранилище вебвью бывает
+    недоступно, чистится и не переезжает на другое устройство, а начатый тест
+    человек хочет найти там же, где бросил.
+    """
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT DISTINCT ON (s.test_key)
+               s.id AS session_id, s.test_key, s.project_id, s.updated_at,
+               p.code_name,
+               (SELECT count(*) FROM session_answers a WHERE a.session_id = s.id) AS answered
+        FROM test_sessions s
+        LEFT JOIN projects p ON p.id = s.project_id
+        WHERE s.user_id = $1 AND s.status = 'in_progress'
+        ORDER BY s.test_key, s.updated_at DESC
+        """,
+        user_id,
+    )
+    return [_row(row) for row in rows]
+
+
+async def abandon_session(session_id: str, user_id: int) -> bool:
+    """Помечает прохождение брошенным. False — сессии нет или она уже закрыта."""
+    pool = await get_pool()
+    won = await pool.fetchval(
+        "UPDATE test_sessions SET status = 'abandoned', updated_at = $1 "
+        "WHERE id = $2 AND user_id = $3 AND status = 'in_progress' RETURNING id",
+        utc_now(), session_id, user_id,
+    )
+    return won is not None
+
+
 async def complete_session(session_id: str, result: dict) -> dict | None:
     """Завершает сессию. None — если её уже завершил кто-то другой.
 
