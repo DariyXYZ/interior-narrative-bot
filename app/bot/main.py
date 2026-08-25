@@ -12,7 +12,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import BotCommand, FSInputFile, MenuButtonCommands, Message
 
 from app.api.telegram_auth import issue_session_token
-from app.bot.keyboards import app_keyboard
+from app.bot.keyboards import app_inline_button, app_keyboard
 from app.core.config import BASE_DIR, get_settings
 from app.storage import repository
 
@@ -24,7 +24,7 @@ WELCOME_IMAGE = BASE_DIR / "docs" / "welcome.jpg"
 BUTTON_TOKEN_TTL_SECONDS = 180 * 24 * 60 * 60
 
 COMMANDS = [
-    BotCommand(command="start", description="О боте и тестах"),
+    BotCommand(command="start", description="О боте + перезагрузка"),
     BotCommand(command="app", description="Открыть приложение"),
     BotCommand(command="help", description="Если что-то не работает"),
     BotCommand(command="privacy", description="Какие данные сохраняются"),
@@ -46,6 +46,7 @@ WELCOME = (
     "Результаты сохраняются в вашей истории — тесты можно проходить заново, "
     "а прерванный тест продолжится с того же вопроса.\n\n"
     "<b>Команды</b>\n"
+    "/start — это сообщение и свежая кнопка входа\n"
     "/app — открыть приложение\n"
     "/help — если что-то не работает\n"
     "/privacy — какие данные сохраняются"
@@ -89,13 +90,13 @@ def create_dispatcher() -> Dispatcher:
     # ссылкой на неё, а не перезаливаем файл на каждый /start.
     welcome_photo_id: str | None = None
 
-    async def keyboard_for(message: Message, screen: str | None = None):
-        """Клавиатура со вшитым входом.
+    async def session_token_for(message: Message) -> str | None:
+        """Вход, который бот подписывает сам.
 
-        Бот знает, кто нажал команду, поэтому может выдать сессионный токен сам —
-        не полагаясь на initData, который Telegram-клиент отдаёт мини-аппу не
-        всегда. Пользователя при этом обязательно кладём в БД: токен проверяется
-        против таблицы users, и для незнакомого человека он был бы бесполезен."""
+        Бот знает, кто нажал команду, поэтому не зависит от initData — его
+        Telegram-клиент отдаёт мини-аппу не всегда. Пользователя при этом
+        обязательно кладём в БД: токен проверяется против таблицы users, и для
+        незнакомого человека он был бы бесполезен."""
         user = message.from_user
         try:
             await repository.upsert_telegram_user(
@@ -107,12 +108,14 @@ def create_dispatcher() -> Dispatcher:
                     "language_code": user.language_code,
                 }
             )
-            session_token = issue_session_token(user.id, token, BUTTON_TOKEN_TTL_SECONDS)
+            return issue_session_token(user.id, token, BUTTON_TOKEN_TTL_SECONDS)
         except Exception:
             # Кнопка нужнее токена: без БД вход просто вернётся к initData.
             logging.exception("Не удалось выдать токен для кнопки, отдаём её без него")
-            session_token = None
-        return app_keyboard(webapp_url, screen, session_token)
+            return None
+
+    async def keyboard_for(message: Message, screen: str | None = None):
+        return app_keyboard(webapp_url, screen, await session_token_for(message))
 
     @dp.message(CommandStart())
     async def start(message: Message) -> None:
@@ -138,7 +141,13 @@ def create_dispatcher() -> Dispatcher:
 
     @dp.message(Command("app"))
     async def open_app(message: Message) -> None:
-        await message.answer("Откройте приложение кнопкой ниже.", reply_markup=await keyboard_for(message))
+        # Кнопка в сообщении, а не на клавиатуре: в Telegram Desktop
+        # reply-клавиатура прячется за мелкой иконкой у поля ввода, и её просто
+        # не находят. Токен входа тот же самый.
+        await message.answer(
+            "Приложение открывается по кнопке:",
+            reply_markup=app_inline_button(webapp_url, None, await session_token_for(message)),
+        )
 
     @dp.message(Command("help"))
     async def help_message(message: Message) -> None:

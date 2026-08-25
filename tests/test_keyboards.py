@@ -41,3 +41,21 @@ def test_app_keyboard_combines_screen_and_token() -> None:
 def test_app_keyboard_skips_empty_token() -> None:
     # Токен не выдался (нет БД) — кнопка всё равно должна остаться рабочей.
     assert _webapp_url(app_keyboard("https://example.com/app/", None, None)) == "https://example.com/app/"
+
+
+def test_app_inline_button_carries_token_and_opens_webapp() -> None:
+    from app.bot.keyboards import app_inline_button
+
+    markup = app_inline_button("https://example.com/app/?v=3", None, "42.999.deadbeef")
+    button = markup.inline_keyboard[0][0]
+    # web_app, а не url: обычная ссылка открыла бы браузер вместо мини-аппа,
+    # и Telegram не передал бы приложению профиль.
+    assert button.web_app is not None
+    assert "t=42.999.deadbeef" in button.web_app.url
+    assert button.web_app.url.count("?") == 1
+
+
+def test_app_inline_button_without_token_stays_clean() -> None:
+    from app.bot.keyboards import app_inline_button
+
+    assert app_inline_button("https://example.com/app/").inline_keyboard[0][0].web_app.url == "https://example.com/app/"
