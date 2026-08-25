@@ -29,16 +29,48 @@ function refreshInitData() {
 // этот раз отдал Telegram-клиент.
 const SESSION_TOKEN_KEY = "interior-narrative:session-token";
 const SESSION_TOKEN_HEADER = "X-Session-Token";
-let sessionToken = localStorage.getItem(SESSION_TOKEN_KEY) || null;
+
+// ── Хранилище, которое не роняет приложение ──
+// Вебвью Telegram (на Desktop особенно) отдаёт localStorage, который бросает
+// на любой операции — тогда голое обращение убивало запуск теста, а человек
+// видел «нет связи», хотя связь была. Без хранилища всё работает, просто до
+// закрытия приложения: сессия и токен доживают в памяти.
+const memoryStore = new Map();
+
+function readLocal(key) {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) return stored;
+  } catch {
+    // Хранилище недоступно — ниже ответит память.
+  }
+  return memoryStore.get(key) ?? null;
+}
+
+function writeLocal(key, value) {
+  memoryStore.set(key, value);
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Значение уже в памяти, этого хватает на текущий сеанс.
+  }
+}
+
+function dropLocal(key) {
+  memoryStore.delete(key);
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Нечего убирать — хранилища и так нет.
+  }
+}
+
+let sessionToken = readLocal(SESSION_TOKEN_KEY);
 
 function storeSessionToken(token) {
   if (!token) return;
   sessionToken = token;
-  try {
-    localStorage.setItem(SESSION_TOKEN_KEY, token);
-  } catch {
-    // Приватный режим вебвью может запрещать запись — вход доживёт до закрытия.
-  }
+  writeLocal(SESSION_TOKEN_KEY, token);
 }
 
 // Вход, вшитый в кнопку бота. Единственный путь, который не зависит от initData:
@@ -131,6 +163,13 @@ const ERROR_TEXTS = {
     code: "НЕТ-ДАННЫХ",
   }),
   client: (e) => ({ text: e.detail || "Запрос не принят сервером.", retry: false, code: null }),
+  // Падение внутри самого приложения. Раньше такие ошибки описывались как
+  // сетевые, и человек чинил интернет там, где дело было не в нём.
+  unknown: () => ({
+    text: `Приложение споткнулось на ровном месте. Закройте его и откройте заново кнопкой «Открыть приложение». ${supportLine}`,
+    retry: true,
+    code: "СБОЙ-1",
+  }),
   config: () => ({
     text: "Приложение собрано без адреса сервера. Это ошибка сборки — сообщите администратору бота.",
     retry: false,
@@ -139,7 +178,7 @@ const ERROR_TEXTS = {
 };
 
 function describeError(error) {
-  const kind = error instanceof ApiError ? error.kind : "network";
+  const kind = error instanceof ApiError ? error.kind : "unknown";
   const build = ERROR_TEXTS[kind] || ERROR_TEXTS.network;
   const described = build(error);
   return { ...described, kind, message: described.code ? `${described.text} (код ${described.code})` : described.text };
@@ -207,7 +246,7 @@ async function api(path, options = {}, _retried = false) {
 
   if (response.status === 401 && !_retried) {
     sessionToken = null;
-    localStorage.removeItem(SESSION_TOKEN_KEY);
+    dropLocal(SESSION_TOKEN_KEY);
     if (await exchangeForSessionToken()) {
       return api(path, options, true);
     }
@@ -373,7 +412,7 @@ async function beginSession(testKey, projectId) {
   const content = await api(`/api/v1/tests/${testKey}`);
 
   // Резюмируем незавершённую сессию этого теста, если она есть.
-  const savedSessionId = localStorage.getItem(sessionKey(testKey));
+  const savedSessionId = readLocal(sessionKey(testKey));
   let sessionId = null;
   let answers = {};
 
@@ -385,7 +424,7 @@ async function beginSession(testKey, projectId) {
         answers = existing.answers || {};
       }
     } catch {
-      localStorage.removeItem(sessionKey(testKey));
+      dropLocal(sessionKey(testKey));
     }
   }
 
@@ -395,7 +434,7 @@ async function beginSession(testKey, projectId) {
       body: JSON.stringify({ test_key: testKey, project_id: projectId || undefined }),
     });
     sessionId = session.id;
-    localStorage.setItem(sessionKey(testKey), sessionId);
+    writeLocal(sessionKey(testKey), sessionId);
   }
 
   const answeredIds = new Set(Object.keys(answers));
@@ -661,7 +700,7 @@ document.getElementById("btn-next").addEventListener("click", async () => {
 document.getElementById("btn-back").addEventListener("click", () => {
   if (savingAnswer || !quiz) return;
   if (quiz.index === 0) {
-    // Черновик сессии остаётся на сервере и в localStorage: вернётся —
+    // Черновик сессии остаётся на сервере и в хранилище: вернётся —
     // продолжит с того же места, а не начнёт заново.
     exitToStart();
     return;
@@ -685,7 +724,7 @@ async function finishQuiz() {
   const slow = slowHint("Считаем результат…", "Считаем результат… связь медленная, ещё пробуем", qText);
   try {
     const result = await api(`/api/v1/sessions/${quiz.sessionId}/complete`, { method: "POST" });
-    localStorage.removeItem(sessionKey(quiz.testKey));
+    dropLocal(sessionKey(quiz.testKey));
     // Дожидаемся полной прорисовки НОВОГО результата, прежде чем показать
     // экран — иначе на долю секунды виден предыдущий результат (screen-results
     // ещё хранит DOM от прошлого прохождения, если это уже не первый тест в сессии).
