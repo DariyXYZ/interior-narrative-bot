@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
@@ -174,7 +175,13 @@ async def telegram_webhook(
 
 @app.get("/api/v1/health")
 async def health() -> dict:
-    return {"status": "ok", "version": app.version}
+    # Коммит в ответе: снаружи иначе не понять, доехал деплой или отвечает
+    # прошлая версия функции — а на этом легко потерять полчаса.
+    return {
+        "status": "ok",
+        "version": app.version,
+        "commit": os.environ.get("VERCEL_GIT_COMMIT_SHA", "local")[:7],
+    }
 
 
 @app.get("/api/v1/me")
