@@ -87,9 +87,32 @@ button { font: inherit; }
   background: none;
   cursor: pointer;
   flex: none;
+  /* Шар и вордмарк — один знак: буквы лежат поверх шара, обе клетки грида
+     занимают одну и ту же ячейку, поэтому знак не занимает лишней высоты и
+     увеличивается при наведении целиком. */
+  display: grid;
+  place-items: center;
   line-height: 0;
   -webkit-tap-highlight-color: transparent;
   transition: transform .18s ease;
+}
+
+.brand-logo,
+.brand-wordmark { grid-area: 1 / 1; }
+
+/* Буквы поверх шара, по его центру. Ширина — чуть больше половины шара:
+   так знак читается и не залезает на светлый край, где контраст падает. */
+.brand-wordmark {
+  width: 22px;
+  height: auto;
+  display: block;
+  fill: #000;
+  position: relative;
+  z-index: 1;
+  /* Шар живой и проходит через тёмно-фиолетовую фазу, где чёрные буквы
+     пропадают. Ореол в полпикселя не виден на светлых кадрах и держит контур
+     на тёмных — дешевле, чем менять цвет знака. */
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, .8));
 }
 .brand-home:hover,
 .brand-home:focus-visible { transform: scale(1.08); }
