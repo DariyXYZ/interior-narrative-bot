@@ -285,7 +285,7 @@ async function initIdentity() {
     userLine.textContent = "Профиль не загрузился — нет связи";
   }
 }
-initIdentity();
+initIdentity().then(refreshDrafts);
 
 // ═══════════════════════════════════════════
 // SCREENS
@@ -346,8 +346,6 @@ function showScreen(name) {
   window.scrollTo({ top: 0 });
 }
 
-const sessionKey = (testKey) => `interior-narrative:session:${testKey}`;
-
 // ═══════════════════════════════════════════
 // STATE — один активный тест за раз
 // ═══════════════════════════════════════════
@@ -376,6 +374,101 @@ const NOT_IN_TELEGRAM =
   + "Отправьте боту /start и откройте приложение свежей кнопкой «Открыть приложение»: "
   + "она несёт вход в себе и работает даже когда Telegram не передаёт профиль.";
 
+// ── Черновики: что начато и не закончено ──
+// Держим на сервере: хранилище вебвью бывает недоступно и не переезжает на
+// другое устройство, а человек ждёт свой недопройденный тест там же, где бросил.
+
+const activeDrafts = new Map();
+
+async function refreshDrafts() {
+  if (!hasIdentity()) return;
+  try {
+    const drafts = await api("/api/v1/sessions/active");
+    activeDrafts.clear();
+    drafts.forEach((draft) => activeDrafts.set(draft.test_key, draft));
+    renderDraftBadges();
+  } catch {
+    // Не достучались — карточки просто останутся без меток, тесты работают.
+  }
+}
+
+function draftLine(draft) {
+  const where = draft.code_name ? ` «${draft.code_name}»` : "";
+  return `Начато${where}: ${draft.answered} из ${draft.total}`;
+}
+
+function renderDraftBadges() {
+  document.querySelectorAll(".test-card").forEach((card) => {
+    const draft = activeDrafts.get(card.dataset.test);
+    let badge = card.querySelector(".test-progress");
+    if (!draft) {
+      badge?.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "test-progress";
+      card.querySelector(".test-content").appendChild(badge);
+    }
+    badge.textContent = draftLine(draft);
+  });
+}
+
+const resumeModal = document.getElementById("resume-modal");
+const resumeText = document.getElementById("resume-text");
+let pendingDraft = null;
+
+function askResume(draft) {
+  pendingDraft = draft;
+  const where = draft.code_name ? ` по проекту «${draft.code_name}»` : "";
+  resumeText.textContent =
+    `Прошлый раз вы остановились${where} на ${draft.answered} из ${draft.total} вопросов. `
+    + "Можно продолжить с того же места или начать тест заново — тогда прежние ответы не сохранятся.";
+  resumeModal.hidden = false;
+}
+
+function closeResume() {
+  resumeModal.hidden = true;
+  pendingDraft = null;
+}
+
+document.getElementById("resume-continue").addEventListener("click", async () => {
+  const draft = pendingDraft;
+  closeResume();
+  if (!draft || busy) return;
+  busy = true;
+  const slow = slowHint("Возвращаемся к тесту…", "Возвращаемся к тесту… связь медленная, ещё пробуем");
+  try {
+    await resumeSession(draft);
+  } catch (error) {
+    renderError(statusNode, error, () => startTest(draft.test_key));
+  } finally {
+    slow.stop();
+    busy = false;
+  }
+});
+
+document.getElementById("resume-restart").addEventListener("click", async () => {
+  const draft = pendingDraft;
+  closeResume();
+  if (!draft) return;
+  try {
+    // Помечаем брошенным до старта нового: иначе следующий заход предложит
+    // продолжить уже забытое прохождение.
+    await api(`/api/v1/sessions/${draft.session_id}/abandon`, { method: "POST" });
+  } catch {
+    // Не вышло — не повод не дать начать заново.
+  }
+  activeDrafts.delete(draft.test_key);
+  renderDraftBadges();
+  await launchTest(draft.test_key);
+});
+
+// Клик мимо карточки — то же, что «не сейчас»: диалог закрывается, выбор не сделан.
+resumeModal.addEventListener("click", (event) => {
+  if (event.target === resumeModal) closeResume();
+});
+
 async function startTest(testKey) {
   if (!hasIdentity()) {
     setStatus(NOT_IN_TELEGRAM);
@@ -383,6 +476,19 @@ async function startTest(testKey) {
   }
   if (busy) return;
 
+  // Начатое и брошенное прохождение важнее нового: у второго теста заново
+  // означало бы ещё раз заполнять бриф проекта, а ответы прошлого раза так и
+  // остались бы висеть неоконченными.
+  const draft = activeDrafts.get(testKey);
+  if (draft) {
+    askResume(draft);
+    return;
+  }
+
+  await launchTest(testKey);
+}
+
+async function launchTest(testKey) {
   if (testKey === "project-narrative") {
     showScreen("project");
     return;
@@ -410,33 +516,22 @@ function slowHint(text, slowText, node = statusNode) {
 
 async function beginSession(testKey, projectId) {
   const content = await api(`/api/v1/tests/${testKey}`);
+  const session = await api("/api/v1/sessions", {
+    method: "POST",
+    body: JSON.stringify({ test_key: testKey, project_id: projectId || undefined }),
+  });
+  await enterQuiz(testKey, session.id, content, {});
+}
 
-  // Резюмируем незавершённую сессию этого теста, если она есть.
-  const savedSessionId = readLocal(sessionKey(testKey));
-  let sessionId = null;
-  let answers = {};
+/** Возврат в брошенное прохождение — с того вопроса, где человек остановился. */
+async function resumeSession(draft) {
+  const content = await api(`/api/v1/tests/${draft.test_key}`);
+  const existing = await api(`/api/v1/sessions/${draft.session_id}`);
+  await enterQuiz(draft.test_key, existing.id, content, existing.answers || {});
+}
 
-  if (savedSessionId) {
-    try {
-      const existing = await api(`/api/v1/sessions/${savedSessionId}`);
-      if (existing.status === "in_progress" && (!projectId || existing.project_id === projectId)) {
-        sessionId = existing.id;
-        answers = existing.answers || {};
-      }
-    } catch {
-      dropLocal(sessionKey(testKey));
-    }
-  }
-
-  if (!sessionId) {
-    const session = await api("/api/v1/sessions", {
-      method: "POST",
-      body: JSON.stringify({ test_key: testKey, project_id: projectId || undefined }),
-    });
-    sessionId = session.id;
-    writeLocal(sessionKey(testKey), sessionId);
-  }
-
+async function enterQuiz(testKey, sessionId, content, answers) {
+  refreshDrafts().catch(() => {});
   const answeredIds = new Set(Object.keys(answers));
   const firstUnanswered = content.questions.findIndex((q) => !answeredIds.has(q.id));
 
@@ -713,6 +808,9 @@ function exitToStart() {
   quiz = null;
   setStatus("");
   showScreen("start");
+  // Счётчик на карточке должен показывать, сколько человек успел ответить
+  // именно сейчас, а не сколько было при открытии приложения.
+  refreshDrafts().catch(() => {});
 }
 
 async function finishQuiz() {
@@ -724,7 +822,8 @@ async function finishQuiz() {
   const slow = slowHint("Считаем результат…", "Считаем результат… связь медленная, ещё пробуем", qText);
   try {
     const result = await api(`/api/v1/sessions/${quiz.sessionId}/complete`, { method: "POST" });
-    dropLocal(sessionKey(quiz.testKey));
+    activeDrafts.delete(quiz.testKey);
+    renderDraftBadges();
     // Дожидаемся полной прорисовки НОВОГО результата, прежде чем показать
     // экран — иначе на долю секунды виден предыдущий результат (screen-results
     // ещё хранит DOM от прошлого прохождения, если это уже не первый тест в сессии).
@@ -1124,7 +1223,7 @@ async function recoverIdentity({ force = false } = {}) {
   if (!force && !gotFreshInitData && sessionToken) return;
   recovering = true;
   try {
-    await initIdentity();
+    await initIdentity().then(refreshDrafts);
     // Пропала причина — убираем и сообщение о ней.
     if (sessionToken && !screens.start.hidden && statusNode.querySelector(".error-text")) {
       statusNode.textContent = "";
