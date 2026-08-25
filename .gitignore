@@ -8,3 +8,4 @@ data/*.sqlite3-*
 logs/*.log
 *.log
 *.old.log
+vercel-env.txt
