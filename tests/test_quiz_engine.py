@@ -142,3 +142,54 @@ def test_narrative_detail_for_session_is_deterministic_and_uses_phrase_bank() ->
     assert first["fragment_ids"]
     for fragment_id in first["fragment_ids"]:
         assert fragment_id.startswith(f"{key}.")
+
+
+# ─── Типологические формулировки (variants) ───
+
+# Типологии из <select id="project-object-type"> в webapp/index.html, кроме «other».
+TYPOLOGIES = ("office", "restaurant", "hotel", "residential-common", "airport", "museum")
+
+
+def test_variants_only_override_text_never_structure() -> None:
+    """Подмена по типологии — только слова: id опций, multi и веса остаются базовыми,
+    иначе scoring разъехался бы между типологиями."""
+    content = load_content("project-narrative")
+    base = public_questions(content)
+    for typology in TYPOLOGIES:
+        typed = public_questions(content, typology)
+        assert [q["id"] for q in typed] == [q["id"] for q in base]
+        for q_base, q_typed in zip(base, typed):
+            assert q_typed["multi"] == q_base["multi"]
+            assert [o["id"] for o in q_typed["options"]] == [o["id"] for o in q_base["options"]]
+            for option in q_typed["options"]:
+                assert "weights" not in option
+
+
+def test_variants_reference_only_existing_options_and_leave_dunno_alone() -> None:
+    content = load_content("project-narrative")
+    for question in content["questions"]:
+        valid = {o["id"] for o in question["options"]}
+        for typology, variant in (question.get("variants") or {}).items():
+            assert typology in TYPOLOGIES, f"{question['id']}: неизвестная типология {typology}"
+            assert variant.get("text"), f"{question['id']}/{typology}: пустой текст"
+            unknown = set(variant.get("options") or {}) - valid
+            assert not unknown, f"{question['id']}/{typology}: опции {unknown} не существуют"
+            assert "dunno" not in (variant.get("options") or {})
+
+
+def test_each_typology_rewords_at_least_60_percent_of_questions() -> None:
+    """Продуктовое требование: пройдя тест для офиса и для музея, человек должен
+    видеть, что тест подстроился под типологию."""
+    content = load_content("project-narrative")
+    base = {q["id"]: q["text"] for q in public_questions(content)}
+    for typology in TYPOLOGIES:
+        reworded = sum(1 for q in public_questions(content, typology) if q["text"] != base[q["id"]])
+        assert reworded / len(base) >= 0.6, f"{typology}: {reworded}/{len(base)}"
+
+
+def test_unknown_or_missing_typology_falls_back_to_base_wording() -> None:
+    content = load_content("project-narrative")
+    base = public_questions(content)
+    assert public_questions(content, None) == base
+    assert public_questions(content, "other") == base
+    assert public_questions(content, "spaceship") == base

@@ -452,3 +452,25 @@ def test_draft_of_another_person_is_invisible(client, auth_headers):
 
     assert client.get("/api/v1/sessions/active", headers=stranger).json() == []
     assert client.post(f"/api/v1/sessions/{session['id']}/abandon", headers=stranger).status_code == 404
+
+
+def test_test_content_is_reworded_for_project_typology(client, auth_headers):
+    base = client.get("/api/v1/tests/project-narrative", headers=auth_headers).json()
+    office = client.get(
+        "/api/v1/tests/project-narrative", params={"object_type": "office"}, headers=auth_headers
+    ).json()
+    assert office["object_type"] == "office"
+    assert [q["id"] for q in office["questions"]] == [q["id"] for q in base["questions"]]
+    assert any(a["text"] != b["text"] for a, b in zip(office["questions"], base["questions"]))
+
+
+def test_session_carries_project_typology_for_resume(client, auth_headers):
+    """При возобновлении фронт берёт типологию из сессии, чтобы показать вопросы
+    в тех же формулировках, что и при старте."""
+    project = client.post(
+        "/api/v1/projects", json={"code_name": "Музей", "object_type": "museum"}, headers=auth_headers
+    ).json()
+    session, _ = _start_answered_session(client, auth_headers, "project-narrative", project["id"], answers=2)
+    fetched = client.get(f"/api/v1/sessions/{session['id']}", headers=auth_headers).json()
+    assert fetched["object_type"] == "museum"
+    assert len(fetched["answers"]) == 2

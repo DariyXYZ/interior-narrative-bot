@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import asyncpg
-from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -194,7 +194,13 @@ async def me(user: Annotated[dict, Depends(current_user)]) -> dict:
 
 
 @app.get("/api/v1/tests/{test_key}")
-async def get_test_content(test_key: str, _user: Annotated[dict, Depends(current_user)]) -> dict:
+async def get_test_content(
+    test_key: str,
+    _user: Annotated[dict, Depends(current_user)],
+    object_type: Annotated[str | None, Query(max_length=64)] = None,
+) -> dict:
+    """object_type — типология проекта: формулировки вопросов подстраиваются под неё
+    (см. quiz_engine.public_questions). Без параметра — базовые формулировки."""
     try:
         content = quiz_engine.load_content(test_key)
     except quiz_engine.ContentNotFoundError as exc:
@@ -204,7 +210,8 @@ async def get_test_content(test_key: str, _user: Annotated[dict, Depends(current
         "version": content["version"],
         "title": content["title"],
         "duration_hint": content["duration_hint"],
-        "questions": quiz_engine.public_questions(content),
+        "object_type": object_type,
+        "questions": quiz_engine.public_questions(content, object_type),
     }
 
 

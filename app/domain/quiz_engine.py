@@ -44,17 +44,30 @@ def load_phrase_bank() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def public_questions(content: dict) -> list[dict]:
-    """Вопросы без весов — клиенту веса не отдаём (scoring авторитетен только на сервере)."""
-    return [
-        {
-            "id": q["id"],
-            "text": q["text"],
-            "multi": q.get("multi", False),
-            "options": [{"id": o["id"], "text": o["text"]} for o in q["options"]],
-        }
-        for q in content["questions"]
-    ]
+def public_questions(content: dict, object_type: str | None = None) -> list[dict]:
+    """Вопросы без весов — клиенту веса не отдаём (scoring авторитетен только на сервере).
+
+    object_type — типология объекта из проекта (office, hotel, …). Если у вопроса
+    есть `variants[object_type]`, текст вопроса и отдельных вариантов ответа
+    подменяется на типологическую формулировку. Меняется только текст: id опций
+    и веса остаются базовыми, поэтому scoring одинаков для всех типологий.
+    Неизвестная или пустая типология — базовые формулировки.
+    """
+    result = []
+    for q in content["questions"]:
+        variant = (q.get("variants") or {}).get(object_type or "") or {}
+        option_texts = variant.get("options") or {}
+        result.append(
+            {
+                "id": q["id"],
+                "text": variant.get("text") or q["text"],
+                "multi": q.get("multi", False),
+                "options": [
+                    {"id": o["id"], "text": option_texts.get(o["id"]) or o["text"]} for o in q["options"]
+                ],
+            }
+        )
+    return result
 
 
 def _question_by_id(content: dict) -> dict[str, dict]:

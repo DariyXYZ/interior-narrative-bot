@@ -149,9 +149,19 @@ async def create_session(user_id: int, test_key: str, project_id: str | None = N
 
 
 async def get_session(session_id: str, user_id: int) -> dict | None:
+    """Сессия вместе с типологией проекта (object_type) — по ней фронт при
+    возобновлении запрашивает вопросы в тех же формулировках, что и при старте."""
     pool = await get_pool()
     return _row(
-        await pool.fetchrow("SELECT * FROM test_sessions WHERE id = $1 AND user_id = $2", session_id, user_id)
+        await pool.fetchrow(
+            """
+            SELECT s.*, p.object_type
+            FROM test_sessions s
+            LEFT JOIN projects p ON p.id = s.project_id
+            WHERE s.id = $1 AND s.user_id = $2
+            """,
+            session_id, user_id,
+        )
     )
 
 
