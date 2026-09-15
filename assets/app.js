@@ -514,8 +514,15 @@ function slowHint(text, slowText, node = statusNode) {
   return { stop: () => clearTimeout(timer) };
 }
 
-async function beginSession(testKey, projectId) {
-  const content = await api(`/api/v1/tests/${testKey}`);
+// Формулировки вопросов подстраиваются под типологию проекта (офис, отель…):
+// сервер отдаёт тот же набор вопросов и вариантов, но в словах выбранной типологии.
+function testContentUrl(testKey, objectType) {
+  const query = objectType ? `?object_type=${encodeURIComponent(objectType)}` : "";
+  return `/api/v1/tests/${testKey}${query}`;
+}
+
+async function beginSession(testKey, projectId, objectType = null) {
+  const content = await api(testContentUrl(testKey, objectType));
   const session = await api("/api/v1/sessions", {
     method: "POST",
     body: JSON.stringify({ test_key: testKey, project_id: projectId || undefined }),
@@ -525,8 +532,9 @@ async function beginSession(testKey, projectId) {
 
 /** Возврат в брошенное прохождение — с того вопроса, где человек остановился. */
 async function resumeSession(draft) {
-  const content = await api(`/api/v1/tests/${draft.test_key}`);
+  // Сначала сессия: в ней типология проекта, от которой зависят формулировки.
   const existing = await api(`/api/v1/sessions/${draft.session_id}`);
+  const content = await api(testContentUrl(draft.test_key, existing.object_type));
   await enterQuiz(draft.test_key, existing.id, content, existing.answers || {});
 }
 
@@ -574,7 +582,7 @@ document.getElementById("project-form").addEventListener("submit", async (event)
       }),
     });
     document.getElementById("project-status").textContent = "";
-    await beginSession("project-narrative", project.id);
+    await beginSession("project-narrative", project.id, form.object_type.value);
   } catch (error) {
     renderError(document.getElementById("project-status"), error, () => form.requestSubmit());
   } finally {
