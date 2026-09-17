@@ -147,7 +147,7 @@ def test_narrative_detail_for_session_is_deterministic_and_uses_phrase_bank() ->
 # ─── Типологические формулировки (variants) ───
 
 # Типологии из <select id="project-object-type"> в webapp/index.html, кроме «other».
-TYPOLOGIES = ("office", "restaurant", "hotel", "residential-common", "airport", "museum")
+TYPOLOGIES = ("office", "restaurant", "hotel", "residential-common", "airport", "museum", "sports")
 
 
 def test_variants_only_override_text_never_structure() -> None:

@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="ru">
+<title>Архетипы нарратива</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --ink: #15161A;
+    --muted: #70737B;
+    --hair: #E6E7EA;
+    --soft: #F4F4F6;
+    --time: #7C3AED; --director: #DB2777; --brand: #2563EB; --bio: #059669;
+    --host: #D97706; --scale: #475569; --material: #B45309; --human: #0891B2;
+    --curator: #DC2626; --context: #65A30D; --urban: #0D9488;
+    --sans: "Golos Text", "Segoe UI", Roboto, Arial, sans-serif;
+    --mono: "IBM Plex Mono", "Consolas", "Courier New", monospace;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.45;
+    -webkit-font-smoothing: antialiased; overflow: hidden;
+  }
+  /* ── сцена: 1600×900 масштабируется под окно ── */
+  .deck { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); }
+  .slide {
+    position: absolute; width: 1600px; height: 900px; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(var(--s, 1));
+    transform-origin: center; background: var(--bg);
+    padding: 88px 96px 84px; box-sizing: border-box;
+    display: grid; grid-template-rows: auto 1fr auto; gap: 40px;
+    opacity: 0; visibility: hidden; transition: opacity .28s ease;
+  }
+  .slide.is-active { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 15px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .foot {
+    font-family: var(--mono); font-size: 15px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid var(--hair); padding-top: 16px;
+  }
+  .foot b { font-weight: 500; color: var(--ink); }
+
+  h1 { font-size: 104px; line-height: .98; letter-spacing: -.03em; font-weight: 600; margin: 0; text-wrap: balance; }
+  h2 { font-size: 64px; line-height: 1.02; letter-spacing: -.025em; font-weight: 600; margin: 0; text-wrap: balance; }
+  h3 { font-size: 28px; line-height: 1.15; letter-spacing: -.01em; font-weight: 600; margin: 0; }
+  p { margin: 0; }
+  .lead { font-size: 30px; line-height: 1.32; max-width: 26ch; text-wrap: pretty; }
+  .body { font-size: 22px; line-height: 1.4; color: var(--ink); max-width: 44ch; text-wrap: pretty; }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--mono); }
+
+  .two { display: grid; grid-template-columns: 5fr 7fr; gap: 80px; align-items: start; min-height: 0; }
+  .two.even { grid-template-columns: 1fr 1fr; }
+  .stack { display: grid; gap: 28px; align-content: start; }
+
+  /* таблицы фактов */
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--ink); }
+  .fact { padding: 28px 28px 28px 0; border-bottom: 1px solid var(--hair); display: grid; gap: 10px; align-content: start; }
+  .fact .n { font-size: 72px; line-height: 1; letter-spacing: -.03em; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fact .t { font-size: 20px; line-height: 1.3; max-width: 22ch; text-wrap: pretty; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 21px; }
+  th { text-align: left; font-family: var(--mono); font-weight: 500; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 0 0 12px; border-bottom: 1px solid var(--ink); }
+  td { padding: 13px 0; border-bottom: 1px solid var(--hair); vertical-align: top; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; width: 8ch; }
+  .bar { display: inline-block; height: 12px; background: var(--ink); vertical-align: middle; margin-right: 12px; }
+
+  /* архетипы */
+  .grid11 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 28px 20px; align-content: start; }
+  .card { display: grid; grid-template-rows: auto auto; gap: 12px; }
+  .card img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; background: var(--soft); }
+  .card .name { font-size: 18px; font-weight: 600; line-height: 1.15; display: flex; gap: 10px; align-items: baseline; }
+  .card .name i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; transform: translateY(-1px); }
+  .card .sub { font-size: 15px; color: var(--muted); line-height: 1.25; }
+
+  .list { display: grid; gap: 0; border-top: 1px solid var(--ink); }
+  .row { display: grid; grid-template-columns: 5ch 1fr; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--hair); font-size: 22px; line-height: 1.35; }
+  .row .k { font-family: var(--mono); font-size: 16px; color: var(--muted); padding-top: 5px; }
+  .row b { font-weight: 600; }
+
+  .pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border-top: 1px solid var(--ink); }
+  .step { padding: 24px 24px 0 0; border-right: 1px solid var(--hair); display: grid; gap: 12px; align-content: start; }
+  .step:last-child { border-right: 0; }
+  .step .k { font-family: var(--mono); font-size: 14px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .step h3 { font-size: 26px; }
+  .step p { font-size: 18px; color: var(--muted); line-height: 1.35; text-wrap: pretty; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { border: 1px solid var(--ink); padding: 8px 16px; font-size: 19px; line-height: 1.2; }
+  .chip.soft { border-color: var(--hair); color: var(--muted); }
+
+  .phone {
+    border: 1px solid var(--ink); padding: 34px 32px; display: grid; gap: 22px; align-content: start;
+    font-size: 20px; line-height: 1.35; background: var(--bg);
+  }
+  .phone .q { font-size: 24px; font-weight: 600; line-height: 1.2; }
+  .phone .opt { border: 1px solid var(--hair); padding: 12px 16px; }
+  .phone .opt.on { border-color: var(--ink); background: var(--soft); }
+  .phone .meta { font-family: var(--mono); font-size: 14px; color: var(--muted); display: flex; justify-content: space-between; }
+
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .cmp .col { display: grid; gap: 14px; align-content: start; }
+  .cmp .k { font-family: var(--mono); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .cmp .q { font-size: 20px; line-height: 1.3; padding: 14px 16px; border: 1px solid var(--hair); }
+  .cmp .q em { font-style: normal; background: var(--soft); padding: 0 4px; }
+
+  /* навигация */
+  .nav {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: var(--hair);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .nav i { display: block; height: 3px; background: var(--ink); width: 0; transition: width .28s ease; }
+  .hint {
+    position: fixed; right: 20px; top: calc(16px + env(safe-area-inset-top, 0px)); font-family: var(--mono); font-size: 13px; color: var(--muted);
+    opacity: .9; user-select: none;
+  }
+  button.nb { all: unset; cursor: pointer; padding: 6px 10px; color: var(--muted); }
+  button.nb:hover, button.nb:focus-visible { color: var(--ink); outline: 1px solid var(--ink); }
+
+  /* узкий экран: слайды в столбик, масштаб по ширине */
+  @media (max-width: 700px) {
+    body { overflow: auto; }
+    .deck { position: static; display: block; padding-block: 8px; }
+    .slide { position: relative; left: 0; top: 0; transform: none; width: 100%; height: auto; min-height: 0;
+      opacity: 1; visibility: visible; padding: 24px 16px; gap: 20px; }
+    .slide > * { max-width: 100%; }
+    h1 { font-size: 40px; } h2 { font-size: 30px; } h3 { font-size: 20px; }
+    .lead { font-size: 19px; } .body { font-size: 16px; }
+    .two, .two.even, .cmp { grid-template-columns: 1fr; gap: 24px; }
+    .facts { grid-template-columns: 1fr; } .fact .n { font-size: 44px; }
+    .grid11 { grid-template-columns: 1fr 1fr; gap: 16px; }
+    .pipe { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--hair); padding: 16px 0; }
+    table { font-size: 15px; } .row { font-size: 16px; }
+    .nav, .hint { display: none; }
+    .eyebrow, .foot { font-size: 12px; }
+  }
+</style>
+
+<div class="deck" id="deck">
+
+  <!-- 1. Титул -->
+  <section class="slide is-active">
+    <div class="eyebrow"><span>IND · Интерьерный отдел</span><span>2026</span></div>
+    <div class="stack" style="align-content:center">
+      <h1>Архетипы дизайнерского нарратива</h1>
+      <p class="lead">Что показало исследование конкурсных интерьеров и во что оно превратилось — тест-игра в Telegram.</p>
+    </div>
+    <div class="foot"><span>Итоги исследования и знакомство с ботом</span><span><b>01</b> / 12</span></div>
+  </section>
+
+  <!-- 2. Откуда данные -->
+  <section class="slide">
+    <div class="eyebrow"><span>База</span><span>Откуда взялись данные</span></div>
+    <div class="two">
+      <div class="stack">
+        <h2>Проекты, которые собрал отдел</h2>
+        <p class="body">Два источника: победители и шортлисты международных и российских премий — и проекты, которые отдел сам отметил как сильные. Всё сведено в одну базу с фото, тегами и оценками.</p>
+      </div>
+      <div class="facts">
+        <div class="fact"><span class="n">65</span><span class="t">проектов в базе, у каждого — карточка с описанием и тегами</span></div>
+        <div class="fact"><span class="n">18</span><span class="t">премий: WAF INSIDE, Frame, Dezeen, SBID, Red Dot, iF, Best Office Awards, Золотой Трезини и другие</span></div>
+        <div class="fact"><span class="n">15</span><span class="t">критериев жюри, по которым оценён каждый проект</span></div>
+        <div class="fact"><span class="n">8</span><span class="t">блоков характеристик: пространство, эстетика, свет, нарратив, эмоция, программа, инновация, фото</span></div>
+        <div class="fact"><span class="n">17</span><span class="t">правил победителей и 6 антипаттернов</span></div>
+        <div class="fact"><span class="n">11</span><span class="t">типов нарратива, к которым свелись все концепции</span></div>
+      </div>
+    </div>
+    <div class="foot"><span>Obsidian · 50 Research / Interior Awards Patterns</span><span><b>02</b> / 12</span></div>
+  </section>
+
+  <!-- 3. Как исследовали -->
+  <section class="slide">
+    <div class="eyebrow"><span>Метод</span><span>Пять слоёв</span></div>
+    <div class="stack">
+      <h2>От премий к правилам</h2>
+      <div class="pipe">
+        <div class="step"><span class="k">1 · Премии</span><h3>Что ценит жюри</h3><p>Критерии 18 премий, их престиж и профиль победителей</p></div>
+        <div class="step"><span class="k">2 · Проекты</span><h3>Кто побеждал</h3><p>65 проектов с фото, кратким описанием и источником</p></div>
+        <div class="step"><span class="k">3 · Характеристики</span><h3>Из чего сделан проект</h3><p>Теги по 8 блокам: от фокусного устройства до фотогеничности</p></div>
+        <div class="step"><span class="k">4 · Оценки</span><h3>Матрица жюри</h3><p>Каждый проект оценён по 15 критериям с весами</p></div>
+        <div class="step"><span class="k">5 · Паттерны</span><h3>Что повторяется</h3><p>Частоты тегов, дерево правил, типы нарратива</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>Rule Tree · Neural Jury Rubric · Pattern Analysis v1</span><span><b>03</b> / 12</span></div>
+  </section>
+
+  <!-- 4. Главные открытия -->
+  <section class="slide">
+    <div class="eyebrow"><span>Результаты</span><span>Что повторяется у победителей</span></div>
+    <div class="two">
+      <div class="stack">
+        <h2>Шесть открытий</h2>
+        <p class="body muted">Жюри видит фотографию, а не пространство. Побеждает не «хорошо сделанный офис», а проект с одним понятным приёмом.</p>
+      </div>
+      <div class="list">
+        <div class="row"><span class="k">17%</span><span><b>Люди, а не материалы.</b> Самый частый нарратив — про связь людей (community-social), а не про биофилию или наследие.</span></div>
+        <div class="row"><span class="k">25%</span><span><b>Без wow — только шортлист.</b> Каждый четвёртый проект не имеет явного wow-механизма и не выигрывает.</span></div>
+        <div class="row"><span class="k">40%</span><span><b>Нет фокуса — нет победы.</b> Проекты без фокусного устройства не попадают в топ-15.</span></div>
+        <div class="row"><span class="k">9%</span><span><b>Вертикаль редка и сильна.</b> Только 6 проектов с атриумом — и они собирают непропорционально много высших оценок.</span></div>
+        <div class="row"><span class="k">26%</span><span><b>Свет как событие.</b> Световые линии, театральность, дневной свет как приём — у четверти, и все они в верхней части.</span></div>
+        <div class="row"><span class="k">14%</span><span><b>Тихий путь — деталь.</b> Один материал, матовость, тактильность: wow через совершенство детали, а не жест.</span></div>
+      </div>
+    </div>
+    <div class="foot"><span>Pattern Analysis v1 · 65 проектов</span><span><b>04</b> / 12</span></div>
+  </section>
+
+  <!-- 5. Портрет победителя -->
+  <section class="slide">
+    <div class="eyebrow"><span>Результаты</span><span>Портрет высшей оценки</span></div>
+    <div class="two even">
+      <div class="stack">
+        <h2>Один жест. Один фокус. Одна история.</h2>
+        <p class="body">Победитель рассказывает историю, которую можно пересказать одним предложением. «Современный удобный офис» — не история. «Офис как городская прогулка» — история.</p>
+      </div>
+      <table>
+        <thead><tr><th>Признак у проектов с Wow = 9</th><th>Частота</th></tr></thead>
+        <tbody>
+          <tr><td>Есть конкретный wow-механизм</td><td class="num"><span class="bar" style="width:120px"></span>100%</td></tr>
+          <tr><td>Есть фокусное устройство</td><td class="num"><span class="bar" style="width:120px"></span>100%</td></tr>
+          <tr><td>Один нарратив, без конкурирующих</td><td class="num"><span class="bar" style="width:120px"></span>100%</td></tr>
+          <tr><td>Высокая фотогеничность</td><td class="num"><span class="bar" style="width:96px"></span>80%</td></tr>
+          <tr><td>Кинематографическая глубина кадра</td><td class="num"><span class="bar" style="width:96px"></span>80%</td></tr>
+          <tr><td>Театральный уровень драмы</td><td class="num"><span class="bar" style="width:84px"></span>70%</td></tr>
+          <tr><td>Вертикальная связь этажей</td><td class="num"><span class="bar" style="width:60px"></span>50%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="foot"><span>Rule Tree · R-01…R-07</span><span><b>05</b> / 12</span></div>
+  </section>
+
+  <!-- 6. Нарративы в базе -->
+  <section class="slide">
+    <div class="eyebrow"><span>Результаты</span><span>Типы нарратива в базе</span></div>
+    <div class="two">
+      <div class="stack">
+        <h2>Одиннадцать способов рассказать интерьер</h2>
+        <p class="body">Каждая концепция в базе свелась к одному из одиннадцати нарративов. Ни один не «лучше» — у каждого свои премии, свои условия и свои риски.</p>
+      </div>
+      <table>
+        <thead><tr><th>Нарратив в базе</th><th>Проектов</th><th>Архетип в тесте</th></tr></thead>
+        <tbody>
+          <tr><td>Community-social — связь людей</td><td class="num">10</td><td>Урбанист</td></tr>
+          <tr><td>Brand scenography — бренд как сцена</td><td class="num">8</td><td>Стратег бренда</td></tr>
+          <tr><td>Minimalism-craft — материал и деталь</td><td class="num">8</td><td>Материаловед</td></tr>
+          <tr><td>Adaptive reuse + industrial heritage</td><td class="num">11</td><td>Архитектор времени</td></tr>
+          <tr><td>Tech-future — вертикальная декларация</td><td class="num">6</td><td>Архитектор масштаба</td></tr>
+          <tr><td>Hospitality crossover — офис как отель</td><td class="num">5</td><td>Архитектор гостеприимства</td></tr>
+          <tr><td>Biophilia — природа как статус</td><td class="num">4</td><td>Биофил</td></tr>
+          <tr><td>Urban-civic — интерьер в контексте города</td><td class="num">3</td><td>Контекстуалист</td></tr>
+          <tr><td>Gallery-studio — образ как произведение</td><td class="num">2</td><td>Куратор образов</td></tr>
+          <tr><td>Wellness-first — комфорт как концепция</td><td class="num">2</td><td>Гуманист</td></tr>
+          <tr><td>Promenade — маршрут как событие</td><td class="num">—</td><td>Режиссёр впечатлений</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="foot"><span>Режиссёр впечатлений выделен из social spine и promenade-проектов как отдельный способ мышления</span><span><b>06</b> / 12</span></div>
+  </section>
+
+  <!-- 7. Архетипы -->
+  <section class="slide">
+    <div class="eyebrow"><span>Архетипы</span><span>11 типов дизайнерского нарратива</span></div>
+    <div class="stack" style="gap:36px"><div class="grid11">
+      <div class="card"><img src="./assets/archetypes/time.jpg" alt=""><span class="name"><i style="background:var(--time)"></i>Архитектор времени</span><span class="sub">Концепция на стыке эпох</span></div>
+      <div class="card"><img src="./assets/archetypes/director.jpg" alt=""><span class="name"><i style="background:var(--director)"></i>Режиссёр впечатлений</span><span class="sub">Маршрут из моментов</span></div>
+      <div class="card"><img src="./assets/archetypes/brand.jpg" alt=""><span class="name"><i style="background:var(--brand)"></i>Стратег бренда</span><span class="sub">Идентичность в пространстве</span></div>
+      <div class="card"><img src="./assets/archetypes/bio.jpg" alt=""><span class="name"><i style="background:var(--bio)"></i>Биофил</span><span class="sub">Природа как точка отсчёта</span></div>
+      <div class="card"><img src="./assets/archetypes/host.jpg" alt=""><span class="name"><i style="background:var(--host)"></i>Архитектор гостеприимства</span><span class="sub">Проектирует через заботу</span></div>
+      <div class="card"><img src="./assets/archetypes/scale.jpg" alt=""><span class="name"><i style="background:var(--scale)"></i>Архитектор масштаба</span><span class="sub">Скульптор пространства</span></div>
+      <div class="card"><img src="./assets/archetypes/material.jpg" alt=""><span class="name"><i style="background:var(--material)"></i>Материаловед</span><span class="sub">Материал как высказывание</span></div>
+      <div class="card"><img src="./assets/archetypes/human.jpg" alt=""><span class="name"><i style="background:var(--human)"></i>Гуманист</span><span class="sub">Человек в центре внимания</span></div>
+      <div class="card"><img src="./assets/archetypes/curator.jpg" alt=""><span class="name"><i style="background:var(--curator)"></i>Куратор образов</span><span class="sub">Произведение искусства</span></div>
+      <div class="card"><img src="./assets/archetypes/context.jpg" alt=""><span class="name"><i style="background:var(--context)"></i>Контекстуалист</span><span class="sub">Погружение в среду</span></div>
+      <div class="card"><img src="./assets/archetypes/urban.jpg" alt=""><span class="name"><i style="background:var(--urban)"></i>Урбанист</span><span class="sub">Интерьер — это город</span></div>
+    </div><p class="body muted">Названия — не ярлыки, а способы мышления. У большинства дизайнеров ведущих два-три, и они меняются от проекта к проекту.</p></div>
+    <div class="foot"><span>Полные описания, сильные стороны и слепые зоны — в результате теста</span><span><b>07</b> / 12</span></div>
+  </section>
+
+  <!-- 8. Зачем игра -->
+  <section class="slide">
+    <div class="eyebrow"><span>Формат</span><span>Почему тест, а не отчёт</span></div>
+    <div class="two even">
+      <div class="stack">
+        <h2>Игровая форма вместо документа</h2>
+        <p class="body">Таблицы с частотами и дерево правил — это рабочий инструмент исследователя. Чтобы отдел освоил нарративы, нужен другой вход: через себя и через свой проект.</p>
+      </div>
+      <div class="list">
+        <div class="row"><span class="k">01</span><span><b>Узнать себя.</b> Какой способ мышления у меня ведущий, что я делаю хорошо и какие приёмы почти не использую.</span></div>
+        <div class="row"><span class="k">02</span><span><b>Общий язык.</b> «Здесь нужен режиссёр впечатлений, а не куратор» — одна фраза вместо получаса обсуждения.</span></div>
+        <div class="row"><span class="k">03</span><span><b>Быстрее к концепции.</b> Ответил на вопросы по брифу — получил направление, две альтернативы и аргумент для заказчика.</span></div>
+        <div class="row"><span class="k">04</span><span><b>Осознанный выбор.</b> Тест не говорит «делай так», он показывает, какой нарратив бриф уже подсказывает, и где риски.</span></div>
+      </div>
+    </div>
+    <div class="foot"><span>Telegram Mini App · @IND_interior_bot</span><span><b>08</b> / 12</span></div>
+  </section>
+
+  <!-- 9. Тест 1 -->
+  <section class="slide">
+    <div class="eyebrow"><span>Тест 1</span><span>Какой вы тип дизайнера</span></div>
+    <div class="two">
+      <div class="stack">
+        <h2>Про себя</h2>
+        <p class="body">30 вопросов о том, как вы начинаете проект, что изучаете первым и ради чего готовы спорить с заказчиком. Шесть минут.</p>
+        <div class="chips">
+          <span class="chip">ведущий архетип</span><span class="chip">колесо из 11</span><span class="chip">сильные стороны</span><span class="chip">слепые зоны</span><span class="chip">совет на проект</span>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="meta"><span>Вопрос 1 из 30</span><span>0%</span></div>
+        <div class="q">Вам пришёл заказ на общественный интерьер. С чего начнёте работу над концепцией?</div>
+        <div class="opt">Погружусь в историю здания и района, чтобы найти инсайты из прошлого.</div>
+        <div class="opt on">Спланирую маршрут от входа до главной зоны и представлю, что человек видит и чувствует по дороге.</div>
+        <div class="opt">Постараюсь выяснить у заказчика, какой образ компании должен считываться в интерьере.</div>
+        <div class="opt">Изучу, как здесь ведёт себя свет и пространство, и постараюсь встроить это в концепцию.</div>
+        <div class="meta"><span>← Назад</span><span>Далее →</span></div>
+      </div>
+    </div>
+    <div class="foot"><span>Формулировки от первого лица, без «правильных» ответов — все четыре варианта равноценны</span><span><b>09</b> / 12</span></div>
+  </section>
+
+  <!-- 10. Тест 2 -->
+  <section class="slide">
+    <div class="eyebrow"><span>Тест 2</span><span>Нарратив для проекта</span></div>
+    <div class="two">
+      <div class="stack">
+        <h2>Про проект</h2>
+        <p class="body">35 вопросов по брифу: что заказчик назвал главным, есть ли у места история, кто пользователи, что с бюджетом, светом, сроками. Ответ «ещё не знаю» допустим — он снижает уверенность, а не искажает результат.</p>
+        <p class="body">В начале выбирается типология — и две трети вопросов звучат её словами.</p>
+        <div class="chips">
+          <span class="chip">офис</span><span class="chip">ресторан</span><span class="chip">отель</span><span class="chip">МОП жилого комплекса</span><span class="chip">аэропорт</span><span class="chip">музей</span><span class="chip">спортивный комплекс</span>
+        </div>
+      </div>
+      <div class="cmp">
+        <div class="col">
+          <span class="k">Офис</span>
+          <div class="q">Заказчик отметил, что в <em>офисе</em> важнее всего:</div>
+          <div class="q">Комфорт <em>сотрудников в ежедневной работе</em>.</div>
+          <div class="q">Насколько критична акустика в <em>офисе</em>: шум и эхо прямо мешают <em>сосредоточенной работе и звонкам</em>.</div>
+          <div class="q">Заезд в офис будет поэтапным — <em>по этажам или отделам</em>:</div>
+        </div>
+        <div class="col">
+          <span class="k">Музей</span>
+          <div class="q">Заказчик отметил, что в <em>музее</em> важнее всего:</div>
+          <div class="q">Комфорт <em>посетителей и удобство работы сотрудников музея</em>.</div>
+          <div class="q">Насколько критична акустика в <em>музее</em>: шум и эхо в залах прямо мешают <em>осмотру, экскурсиям и аудиогидам</em>.</div>
+          <div class="q">Открытие будет поэтапным — <em>сначала часть залов, потом остальное</em>:</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Веса и логика подсчёта общие для всех типологий — меняются только слова</span><span><b>10</b> / 12</span></div>
+  </section>
+
+  <!-- 11. Что получаете -->
+  <section class="slide">
+    <div class="eyebrow"><span>Результат теста 2</span><span>Что приходит в ответ</span></div>
+    <div class="two even">
+      <div class="stack">
+        <h2>Направление, а не приговор</h2>
+        <p class="body">Результат — основной нарратив с процентом соответствия, две ближайшие альтернативы и уверенность: сколько вопросов отвечено по существу. Тексты собираются из банка формулировок, поэтому два проекта с одним ответом не получают одинаковую карточку.</p>
+      </div>
+      <div class="list">
+        <div class="row"><span class="k">→</span><span><b>Тезис.</b> Одно предложение, которым можно пересказать концепцию.</span></div>
+        <div class="row"><span class="k">→</span><span><b>Когда подходит / когда нет.</b> Условия брифа, при которых нарратив работает или ломается.</span></div>
+        <div class="row"><span class="k">→</span><span><b>Аргумент для заказчика.</b> Как объяснить выбор на языке бизнеса, а не эстетики.</span></div>
+        <div class="row"><span class="k">→</span><span><b>Визуальное направление.</b> Материалы, свет, контраст — с чего начинать рефборд.</span></div>
+        <div class="row"><span class="k">→</span><span><b>Риски и следующий шаг.</b> Что проверить до того, как показывать концепцию.</span></div>
+      </div>
+    </div>
+    <div class="foot"><span>История прохождений хранится — к результату можно вернуться и сравнить проекты</span><span><b>11</b> / 12</span></div>
+  </section>
+
+  <!-- 12. Как начать -->
+  <section class="slide">
+    <div class="eyebrow"><span>Старт</span><span>Как попробовать</span></div>
+    <div class="two even">
+      <div class="stack">
+        <h2>@IND_interior_bot</h2>
+        <p class="body">Откройте бота в Telegram, нажмите «Открыть приложение» — и выберите тест. Работает на телефоне и на десктопе, начатый тест можно продолжить с того же вопроса.</p>
+        <div class="chips">
+          <span class="chip">/start</span><span class="chip soft">→</span><span class="chip">Открыть приложение</span><span class="chip soft">→</span><span class="chip">Тест 1 · 6 мин</span><span class="chip soft">или</span><span class="chip">Тест 2 · 10–15 мин</span>
+        </div>
+      </div>
+      <div class="stack">
+        <h3>Что дальше</h3>
+        <div class="list">
+          <div class="row"><span class="k">—</span><span>Пройти тест 1 всем отделом и сравнить профили: какие архетипы у нас в избытке, каких нет.</span></div>
+          <div class="row"><span class="k">—</span><span>Прогнать тест 2 на двух-трёх текущих брифах и сверить с концепциями, которые уже сделаны.</span></div>
+          <div class="row"><span class="k">—</span><span>Собрать замечания к формулировкам — тексты живут в одном файле и правятся быстро.</span></div>
+          <div class="row"><span class="k">—</span><span>Следующий слой: референсы по каждому нарративу и подтипы для неофисных типологий.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Исследование и бот — интерьерный отдел IND · вопросы и правки — Дарию</span><span><b>12</b> / 12</span></div>
+  </section>
+
+</div>
+
+<div class="hint"><button class="nb" id="prev" aria-label="Предыдущий слайд">←</button><span id="pos">1 / 12</span><button class="nb" id="next" aria-label="Следующий слайд">→</button></div>
+<div class="nav" aria-hidden="true"><i id="bar"></i></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0, n = slides.length;
+  var bar = document.getElementById('bar'), pos = document.getElementById('pos');
+  var narrow = window.matchMedia('(max-width: 700px)');
+
+  function fit() {
+    var s = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+    document.documentElement.style.setProperty('--s', String(s));
+  }
+  function show(k) {
+    i = Math.max(0, Math.min(n - 1, k));
+    slides.forEach(function (el, j) { el.classList.toggle('is-active', j === i); });
+    bar.style.width = ((i + 1) / n * 100) + '%';
+    pos.textContent = (i + 1) + ' / ' + n;
+    try { location.hash = String(i + 1); } catch (e) {}
+  }
+  document.addEventListener('keydown', function (e) {
+    if (narrow.matches) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(n - 1);
+  });
+  document.getElementById('deck').addEventListener('click', function (e) {
+    if (narrow.matches || e.target.closest('a, button')) return;
+    show(e.clientX < window.innerWidth * 0.25 ? i - 1 : i + 1);
+  });
+  document.getElementById('prev').addEventListener('click', function () { show(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(i + 1); });
+  window.addEventListener('resize', fit);
+  fit();
+  var fromHash = parseInt((location.hash || '').replace('#', ''), 10);
+  show(isNaN(fromHash) ? 0 : fromHash - 1);
+})();
+</script>
+
+</html>
