@@ -124,6 +124,16 @@
     table { font-size: 15px; } td.barcell { width: auto; }
     .eyebrow, .foot { font-size: 12px; }
   }
+
+  /* печать / PDF: каждый слайд — страница 1600×900 */
+  @media print {
+    @page { size: 1600px 900px; margin: 0; }
+    html, body { height: auto; overflow: visible; }
+    .deck { position: static; }
+    .slide { position: relative; left: 0; top: 0; transform: none; opacity: 1; visibility: visible;
+      page-break-after: always; break-after: page; }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+  }
 </style>
 
 <div class="deck" id="deck">
