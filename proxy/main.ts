@@ -21,8 +21,14 @@ Deno.serve(async (req) => {
     redirect: "manual",
   });
 
+  // fetch уже распаковал тело: если оставить content-encoding, браузер
+  // попробует распаковать его второй раз и уронит response.json().
+  const out = new Headers(upstream.headers);
+  out.delete("content-encoding");
+  out.delete("content-length");
+
   return new Response(upstream.body, {
     status: upstream.status,
-    headers: upstream.headers,
+    headers: out,
   });
 });
