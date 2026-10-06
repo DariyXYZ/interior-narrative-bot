@@ -177,6 +177,10 @@ async def telegram_webhook(
 async def health() -> dict:
     # Коммит в ответе: снаружи иначе не понять, доехал деплой или отвечает
     # прошлая версия функции — а на этом легко потерять полчаса.
+    # Запрос в базу нужен и для keep-alive: бесплатный Supabase засыпает
+    # после недели без активности, и тогда функция падает целиком.
+    pool = await repository.get_pool()
+    await pool.fetchval("SELECT 1")
     return {
         "status": "ok",
         "version": app.version,
