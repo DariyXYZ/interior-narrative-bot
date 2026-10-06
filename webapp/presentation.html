@@ -61,18 +61,18 @@
   .cover .stack { max-width: 860px; position: relative; z-index: 1; }
   .cover-phone {
     position: absolute; left: 1030px; top: 104px; width: 324px; box-sizing: border-box;
-    padding: 11px; border-radius: 52px; background: #111216;
+    padding: 5px; border-radius: 46px; background: #111216;
     box-shadow: 0 0 0 1px #2A2C33 inset, 0 40px 80px -24px rgba(17, 18, 22, .35), 0 12px 28px -10px rgba(17, 18, 22, .25);
   }
   .cover-phone .screen { display: block; padding-top: 40px; border-radius: 41px; background: #F8F9FB; overflow: hidden; }
   .cover-phone img { display: block; width: 100%; }
   .cover-phone .status {
-    position: absolute; top: 25px; left: 40px; right: 40px; display: flex; justify-content: space-between;
-    font-size: 13px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
+    position: absolute; top: 5px; left: 36px; right: 36px; height: 40px; display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; line-height: 1; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
   }
   .cover-phone::before {
-    content: ""; position: absolute; top: 22px; left: 50%; width: 84px; height: 24px;
-    transform: translateX(-50%); border-radius: 12px; background: #111216;
+    content: ""; position: absolute; top: 14px; left: 50%; width: 82px; height: 22px;
+    transform: translateX(-50%); border-radius: 999px; background: #111216; z-index: 1;
   }
 
   /* цифры */
