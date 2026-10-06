@@ -57,6 +57,24 @@
   .two.even { grid-template-columns: 1fr 1fr; }
   .stack { display: grid; gap: 28px; align-content: start; }
 
+  /* обложка: справа телефон с главным экраном бота */
+  .cover .stack { max-width: 860px; position: relative; z-index: 1; }
+  .cover-phone {
+    position: absolute; left: 1030px; top: 104px; width: 324px; box-sizing: border-box;
+    padding: 11px; border-radius: 52px; background: #111216;
+    box-shadow: 0 0 0 1px #2A2C33 inset, 0 40px 80px -24px rgba(17, 18, 22, .35), 0 12px 28px -10px rgba(17, 18, 22, .25);
+  }
+  .cover-phone .screen { display: block; padding-top: 40px; border-radius: 41px; background: #F8F9FB; overflow: hidden; }
+  .cover-phone img { display: block; width: 100%; }
+  .cover-phone .status {
+    position: absolute; top: 25px; left: 40px; right: 40px; display: flex; justify-content: space-between;
+    font-size: 13px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .cover-phone::before {
+    content: ""; position: absolute; top: 22px; left: 50%; width: 84px; height: 24px;
+    transform: translateX(-50%); border-radius: 12px; background: #111216;
+  }
+
   /* цифры */
   .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 44px 32px; align-content: start; }
   .fact { display: grid; gap: 10px; align-content: start; }
@@ -117,6 +135,8 @@
     .slide { position: relative; left: 0; top: 0; transform: none; width: 100%; height: auto; overflow: visible;
       opacity: 1; visibility: visible; padding: 28px 16px; gap: 20px; }
     h1 { font-size: 40px; } h2 { font-size: 30px; } h3 { font-size: 20px; }
+    .cover-phone { position: static; width: 240px; padding: 8px; border-radius: 38px; }
+    .cover-phone .screen { border-radius: 30px; padding-top: 0; } .cover-phone::before, .cover-phone .status { display: none; }
     .lead { font-size: 19px; } .body { font-size: 16px; } .row { font-size: 16px; }
     .two, .two.even, .cmp, .pipe, .phones, .phones.three { grid-template-columns: 1fr; gap: 24px; }
     .facts { grid-template-columns: 1fr 1fr; gap: 24px 16px; } .fact .n { font-size: 44px; }
@@ -139,8 +159,9 @@
 <div class="deck" id="deck">
 
   <!-- 1 -->
-  <section class="slide is-active">
+  <section class="slide cover is-active">
     <div class="eyebrow"><span>IND · Интерьерный отдел</span><span>2026</span></div>
+    <div class="cover-phone"><span class="status"><span>9:41</span><span>●●●</span></span><span class="screen"><img src="./assets/screens/start.png" alt="Главный экран бота: выбор теста"></span></div>
     <div class="stack" style="align-content:center">
       <h1>Архетипы дизайнерского нарратива</h1>
       <p class="lead">Что показало исследование конкурсных интерьеров и во что оно превратилось — тест в Telegram.</p>
